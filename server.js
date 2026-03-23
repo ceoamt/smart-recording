@@ -20,6 +20,7 @@ const http   = require('http');
 const fs     = require('fs');
 const path   = require('path');
 const zlib   = require('zlib');
+const crypto = require('crypto');
 const { URL } = require('url');
 
 const PORT         = process.env.PORT || 4000;
@@ -27,6 +28,44 @@ const DATA_DIR     = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUB_DIR      = path.join(__dirname, 'public');
 const TTL_DAYS     = parseInt(process.env.SESSION_TTL_DAYS || '30', 10);
 const TTL_MS       = TTL_DAYS * 24 * 60 * 60 * 1000;
+
+// ─── Autenticazione ──────────────────────────────────────────────────────────
+const AUTH_USER  = process.env.AUTH_USER || 'amtitalia';
+const AUTH_PASS  = process.env.AUTH_PASS || 'smartrec2026?!?!';
+const COOKIE_NAME = 'sr_session';
+const SESSIONS_AUTH = new Map(); // token → { createdAt }
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function parseCookies(req) {
+  const cookies = {};
+  (req.headers.cookie || '').split(';').forEach(part => {
+    const [k, ...v] = part.trim().split('=');
+    if (k) cookies[k.trim()] = v.join('=').trim();
+  });
+  return cookies;
+}
+
+function isAuthenticated(req) {
+  const token = parseCookies(req)[COOKIE_NAME];
+  return !!(token && SESSIONS_AUTH.has(token));
+}
+
+// Route pubbliche (tracker + login) — non richiedono autenticazione
+function isPublicRoute(method, pathname) {
+  if (method === 'OPTIONS')              return true;
+  if (pathname === '/login')             return true;
+  if (pathname === '/api/login')         return true;
+  if (pathname === '/api/logout')        return true;
+  if (pathname === '/tracker.js')        return true;
+  if (pathname === '/test.html')         return true;
+  if (method === 'POST' && pathname === '/api/sessions/start')            return true;
+  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/events$/.test(pathname)) return true;
+  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/end$/.test(pathname))    return true;
+  return false;
+}
 
 // ─── Cartelle dati ─────────────────────────────────────────────────────────
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -176,6 +215,47 @@ async function router(req, res) {
   const pathname = parsed.pathname;
   const method   = req.method;
 
+  // ── POST /api/login ───────────────────────────────────────────────────────
+  if (method === 'POST' && pathname === '/api/login') {
+    const body = await readBody(req);
+    if (body.username === AUTH_USER && body.password === AUTH_PASS) {
+      const token = generateToken();
+      SESSIONS_AUTH.set(token, { createdAt: Date.now() });
+      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax`);
+      json(res, 200, { ok: true });
+    } else {
+      json(res, 401, { ok: false, error: 'Credenziali non valide' });
+    }
+    return;
+  }
+
+  // ── POST /api/logout ──────────────────────────────────────────────────────
+  if (method === 'POST' && pathname === '/api/logout') {
+    const token = parseCookies(req)[COOKIE_NAME];
+    if (token) SESSIONS_AUTH.delete(token);
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+    json(res, 200, { ok: true });
+    return;
+  }
+
+  // ── Auth guard ────────────────────────────────────────────────────────────
+  if (!isPublicRoute(method, pathname) && !isAuthenticated(req)) {
+    if (method === 'GET' && !pathname.startsWith('/api/')) {
+      res.writeHead(302, { 'Location': '/login' });
+      res.end();
+    } else {
+      json(res, 401, { error: 'unauthorized' });
+    }
+    return;
+  }
+
+  // ── Redirect da /login → / se già autenticato ─────────────────────────────
+  if (method === 'GET' && pathname === '/login' && isAuthenticated(req)) {
+    res.writeHead(302, { 'Location': '/' });
+    res.end();
+    return;
+  }
+
   // ── POST /api/sessions/start ──────────────────────────────────────────────
   if (method === 'POST' && pathname === '/api/sessions/start') {
     const body     = await readBody(req);
@@ -298,7 +378,9 @@ async function router(req, res) {
     const clients = readClients();
     const idx     = clients.findIndex(c => c.id === id);
     if (idx === -1) { json(res, 404, { error: 'not found' }); return; }
-    if (body.name) clients[idx].name = body.name;
+    if (body.name        !== undefined) clients[idx].name        = body.name;
+    if (body.maxSessions !== undefined) clients[idx].maxSessions = Number(body.maxSessions) || 0;
+    if (body.ttlDays     !== undefined) clients[idx].ttlDays     = Number(body.ttlDays)     || 0;
     writeClients(clients);
     json(res, 200, clients[idx]);
     return;
