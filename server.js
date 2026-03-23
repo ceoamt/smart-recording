@@ -173,7 +173,13 @@ async function router(req, res) {
     const sessions = readSessions();
     const id       = body.sessionId || generateId();
 
-    const siteId = body.siteId || 'default';
+    const siteId  = body.siteId || 'default';
+    const clients = readClients();
+    if (!clients.find(c => c.siteId === siteId)) {
+      // Cliente non registrato: ignora silenziosamente (il tracker non deve crashare)
+      json(res, 200, { ok: false, reason: 'unknown_site' });
+      return;
+    }
 
     const session = {
       id,
