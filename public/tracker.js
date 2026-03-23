@@ -12,6 +12,8 @@
  *   window.SmartRecordingConfig = {
  *     siteId:        'mio-sito',                        // ID cliente (obbligatorio)
  *     serverUrl:     'https://recording.miodominio.com', // default: localhost:4000
+ *     sampleRate:    0.3,     // % sessioni da registrare: 0.0-1.0 (default: 1.0 = tutte)
+ *     cooldownHours: 24,      // ore minime tra registrazioni dello stesso utente (default: 0)
  *     maskInputs:    true,    // maschera tutti gli input (default: true)
  *     flushInterval: 5000,    // ms tra un flush e l'altro (default: 5000)
  *     flushBatch:    50,      // eventi prima del flush forzato (default: 50)
@@ -27,6 +29,29 @@
   var MASK_INPUTS    = cfg.maskInputs   !== false;
   var FLUSH_INTERVAL = cfg.flushInterval || 5000;
   var FLUSH_BATCH    = cfg.flushBatch   || 50;
+
+  // Frequenza di registrazione
+  // sampleRate: 0.0 - 1.0 (default 1.0 = 100%)
+  // cooldownHours: ore di attesa tra una registrazione e l'altra per lo stesso utente (default 0 = nessun limite)
+  var SAMPLE_RATE    = cfg.sampleRate    !== undefined ? parseFloat(cfg.sampleRate)    : 1.0;
+  var COOLDOWN_HOURS = cfg.cooldownHours !== undefined ? parseFloat(cfg.cooldownHours) : 0;
+
+  // Controlla se questa sessione deve essere registrata
+  function shouldRecord() {
+    // 1. Sample rate: estrazione casuale
+    if (Math.random() > SAMPLE_RATE) return false;
+
+    // 2. Cooldown utente (via localStorage)
+    if (COOLDOWN_HOURS > 0) {
+      var key      = '__sr_last_' + SITE_ID;
+      var lastTime = parseInt(localStorage.getItem(key) || '0', 10);
+      var now      = Date.now();
+      if (lastTime && (now - lastTime) < COOLDOWN_HOURS * 3600 * 1000) return false;
+      localStorage.setItem(key, String(now));
+    }
+
+    return true;
+  }
 
   // Evita doppia inizializzazione
   if (window.__smartRecordingActive) return;
@@ -137,6 +162,8 @@
   };
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  if (!shouldRecord()) return; // nessuna registrazione per questa sessione
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { loadRrweb(startRecording); });
   } else {
