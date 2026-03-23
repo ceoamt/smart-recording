@@ -115,14 +115,6 @@ function writeClients(clients) {
   fs.writeFileSync(CLIENTS_FILE, JSON.stringify(clients, null, 2), 'utf8');
 }
 
-// Assicura che un client con quel siteId esista (auto-registrazione)
-function ensureClient(siteId) {
-  const clients = readClients();
-  if (!clients.find(c => c.siteId === siteId)) {
-    clients.push({ id: generateId(), siteId, name: siteId, createdAt: Date.now() });
-    writeClients(clients);
-  }
-}
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -182,7 +174,6 @@ async function router(req, res) {
     const id       = body.sessionId || generateId();
 
     const siteId = body.siteId || 'default';
-    ensureClient(siteId);
 
     const session = {
       id,
