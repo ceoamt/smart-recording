@@ -1039,6 +1039,8 @@
     var title = currentClient ? currentClient.name : 'Sessioni';
     document.getElementById('sessions-sidebar-title').textContent = title;
     loadSessions();
+    // Aggiorna stats se il tab è attivo
+    if (document.getElementById('tab-stats').classList.contains('active')) renderStats();
   };
 
   window.toggleNewClientForm = function () {
@@ -1544,7 +1546,16 @@
         }).join('');
       }
 
+      var clientLabel = currentClient
+        ? '<div style="display:flex;align-items:center;gap:8px;padding:4px 0 8px;">' +
+            '<div style="width:8px;height:8px;border-radius:50%;background:' + (currentClient.color || '#5b6af0') + '"></div>' +
+            '<span style="font-size:13px;font-weight:600;">' + escHtml(currentClient.name) + '</span>' +
+            '<span style="font-size:11px;color:var(--muted);">· ' + escHtml(currentClient.siteId) + '</span>' +
+          '</div>'
+        : '<div style="font-size:13px;font-weight:600;padding:4px 0 8px;color:var(--muted);">Tutti i clienti</div>';
+
       panel.innerHTML =
+        clientLabel +
         // KPI
         '<div class="stat-block">' +
           '<div class="stat-block-title">Panoramica</div>' +
