@@ -285,6 +285,32 @@
       color: var(--muted);
     }
 
+    /* ── Filtri device ───────────────────────────────────────────────── */
+    .filter-chips {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      padding: 8px 12px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: none;
+      transition: all .12s;
+      white-space: nowrap;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--text); }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
     .sessions-list {
       flex: 1;
       overflow-y: auto;
@@ -684,6 +710,7 @@
         <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
       </div>
     </div>
+    <div class="filter-chips" id="filter-chips"></div>
     <div class="sessions-list" id="sessions-list">
       <div class="empty-state">
         <div class="spinner"></div>
@@ -763,11 +790,18 @@
   var sessions       = [];
   var clients        = [];
   var currentSession = null;
-  var currentClient  = null;  // null = tutti
+  var currentClient  = null;
   var player         = null;
+  var activeFilters  = {};  // es. { deviceType: 'mobile', os: 'iOS' }
 
-  // Colori ciclici per i clienti
   var CLIENT_COLORS = ['#5b6af0','#f06b5b','#4caf7d','#f0a830','#a855f7','#06b6d4','#f43f5e','#84cc16'];
+
+  // ── Icone SVG ──────────────────────────────────────────────────────────────
+  var DEVICE_ICONS = {
+    desktop: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    tablet:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>',
+    mobile:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>',
+  };
 
   // ── Formattazione ──────────────────────────────────────────────────────────
   function fmtDuration(ms) {
@@ -933,9 +967,10 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         sessions = data;
-        renderSessions(sessions);
+        renderFilterChips();
+        applyFilters();
         updateStats();
-        renderClients(); // aggiorna contatori
+        renderClients();
       })
       .catch(function () {
         document.getElementById('sessions-list').innerHTML =
@@ -971,6 +1006,7 @@
         ? '<span class="badge badge-recording">● Live</span>'
         : '<span class="badge badge-completed">✓ Completata</span>';
 
+      var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
       return '<div class="session-card' + isActive + '" onclick="selectSession(\'' + s.id + '\')">' +
         '<button class="session-card-delete" title="Elimina" onclick="deleteSession(event,\'' + s.id + '\')">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
@@ -978,22 +1014,71 @@
         '<div class="session-card-url">' + fmtShortUrl(s.url) + '</div>' +
         '<div class="session-card-meta">' +
           badge +
+          '<span class="tag">' + deviceIcon + ' ' + (s.deviceType || 'desktop') + '</span>' +
           '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + fmtDuration(s.duration) + '</span>' +
           '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' + fmtDate(s.startTime) + '</span>' +
           '<span>' + fmtBrowser(s.userAgent) + '</span>' +
+          (s.os ? '<span>' + s.os + '</span>' : '') +
+          (s.language ? '<span>🌐 ' + s.language + '</span>' : '') +
           '<span>' + (s.eventsCount || 0) + ' eventi</span>' +
         '</div>' +
       '</div>';
     }).join('');
   }
 
-  // ── Filtro ricerca ─────────────────────────────────────────────────────────
-  window.filterSessions = function () {
-    var q = document.getElementById('search-input').value.toLowerCase();
+  // ── Filtri chips ───────────────────────────────────────────────────────────
+  function renderFilterChips() {
+    var devices = {};
+    var oses    = {};
+    sessions.forEach(function (s) {
+      if (s.deviceType) devices[s.deviceType] = (devices[s.deviceType] || 0) + 1;
+      if (s.os)         oses[s.os]            = (oses[s.os]            || 0) + 1;
+    });
+
+    var html = '';
+
+    // Device chips
+    Object.keys(devices).forEach(function (d) {
+      var active = activeFilters.deviceType === d ? ' active' : '';
+      var icon   = DEVICE_ICONS[d] || '';
+      html += '<button class="chip' + active + '" onclick="toggleFilter(\'deviceType\',\'' + d + '\')">' +
+        icon + ' ' + d + ' <span style="opacity:.6">(' + devices[d] + ')</span></button>';
+    });
+
+    // OS chips (solo se più di 1 OS)
+    var osKeys = Object.keys(oses);
+    if (osKeys.length > 1) {
+      osKeys.forEach(function (o) {
+        var active = activeFilters.os === o ? ' active' : '';
+        html += '<button class="chip' + active + '" onclick="toggleFilter(\'os\',\'' + o + '\')">' +
+          o + ' <span style="opacity:.6">(' + oses[o] + ')</span></button>';
+      });
+    }
+
+    document.getElementById('filter-chips').innerHTML = html;
+  }
+
+  window.toggleFilter = function (key, value) {
+    if (activeFilters[key] === value) delete activeFilters[key];
+    else activeFilters[key] = value;
+    renderFilterChips();
+    applyFilters();
+  };
+
+  function applyFilters() {
+    var q        = (document.getElementById('search-input').value || '').toLowerCase();
     var filtered = sessions.filter(function (s) {
-      return s.url.toLowerCase().includes(q) || (s.userAgent || '').toLowerCase().includes(q);
+      if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
+      if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
+      if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
+      return true;
     });
     renderSessions(filtered);
+  }
+
+  // ── Filtro ricerca ─────────────────────────────────────────────────────────
+  window.filterSessions = function () {
+    applyFilters();
   };
 
   // ── Seleziona sessione ─────────────────────────────────────────────────────
@@ -1014,12 +1099,20 @@
     document.getElementById('player-wrap').style.display    = 'none';
 
     document.getElementById('player-url').textContent = currentSession.url;
+    var s = currentSession;
+    var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
     document.getElementById('player-meta').innerHTML =
-      '<span>' + fmtDate(currentSession.startTime) + '</span>' +
-      '<span>Durata: ' + fmtDuration(currentSession.duration) + '</span>' +
-      '<span>' + fmtBrowser(currentSession.userAgent) + '</span>' +
-      '<span>' + (currentSession.viewport.width || '?') + '×' + (currentSession.viewport.height || '?') + '</span>' +
-      '<span>' + (currentSession.eventsCount || 0) + ' eventi</span>';
+      '<span>' + fmtDate(s.startTime) + '</span>' +
+      '<span>Durata: ' + fmtDuration(s.duration) + '</span>' +
+      '<span>' + deviceIcon + ' ' + (s.deviceType || 'desktop') + '</span>' +
+      '<span>' + fmtBrowser(s.userAgent) + '</span>' +
+      (s.os          ? '<span>' + s.os + '</span>'            : '') +
+      (s.language    ? '<span>🌐 ' + s.language + '</span>'  : '') +
+      (s.timezone    ? '<span>⏰ ' + s.timezone + '</span>'   : '') +
+      (s.connectionType ? '<span>📶 ' + s.connectionType + '</span>' : '') +
+      '<span>' + (s.viewport.width || '?') + '×' + (s.viewport.height || '?') + '</span>' +
+      (s.pixelRatio > 1 ? '<span>@' + s.pixelRatio + 'x</span>' : '') +
+      '<span>' + (s.eventsCount || 0) + ' eventi</span>';
 
     // Reset player precedente
     if (player) { try { player.pause(); } catch(e){} player = null; }

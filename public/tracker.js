@@ -93,14 +93,39 @@
   }
 
   // ── Avvio sessione ─────────────────────────────────────────────────────────
+  function getDeviceType() {
+    var w = window.innerWidth;
+    var hasTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    if (w <= 768 && hasTouch) return 'mobile';
+    if (w <= 1024 && hasTouch) return 'tablet';
+    return 'desktop';
+  }
+
+  function getOS() {
+    var ua = navigator.userAgent;
+    if (/Android/i.test(ua))               return 'Android';
+    if (/iPhone|iPad|iPod/i.test(ua))      return 'iOS';
+    if (/Windows/i.test(ua))               return 'Windows';
+    if (/Mac OS X/i.test(ua))              return 'macOS';
+    if (/Linux/i.test(ua))                 return 'Linux';
+    return 'Unknown';
+  }
+
   function startSession() {
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     post('/api/sessions/start', {
-      sessionId: SESSION_ID,
-      siteId:    SITE_ID,
-      url:       window.location.href,
-      referrer:  document.referrer || '',
-      userAgent: navigator.userAgent,
-      viewport:  { width: window.innerWidth, height: window.innerHeight },
+      sessionId:       SESSION_ID,
+      siteId:          SITE_ID,
+      url:             window.location.href,
+      referrer:        document.referrer || '',
+      userAgent:       navigator.userAgent,
+      viewport:        { width: window.innerWidth, height: window.innerHeight },
+      deviceType:      getDeviceType(),
+      os:              getOS(),
+      language:        navigator.language || '',
+      timezone:        Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+      connectionType:  conn ? (conn.effectiveType || conn.type || '') : '',
+      pixelRatio:      window.devicePixelRatio || 1,
     }, false);
     sessionStarted = true;
   }
