@@ -846,6 +846,70 @@
     }
     .activity-bar:hover { opacity: 1; }
 
+    /* ── Settings modal cliente ──────────────────────────────────────── */
+    .settings-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+      width: 420px;
+      max-width: 95vw;
+    }
+    .settings-modal h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .settings-modal .sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .settings-field {
+      margin-bottom: 20px;
+    }
+    .settings-field label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .settings-field label span {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    .settings-field .hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+    .settings-presets {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .preset-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 5px 10px;
+      font-size: 12px;
+      transition: border-color .1s, background .1s;
+    }
+    .preset-btn:hover { border-color: var(--accent); }
+    .preset-btn.active { border-color: var(--accent); background: rgba(91,106,240,.18); color: var(--accent2); font-weight: 600; }
+
+    .settings-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 6px 0 20px;
+    }
+
     /* ── Scrollbar globale ────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -1012,6 +1076,55 @@
   </main>
 </div>
 
+<!-- ── Modal impostazioni cliente ─────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="client-settings-modal" onclick="closeClientSettings(event)">
+  <div class="settings-modal" onclick="event.stopPropagation()">
+    <h3 id="csm-title">Impostazioni</h3>
+    <p class="sub" id="csm-sub">siteId: –</p>
+
+    <hr class="settings-divider">
+
+    <!-- Max sessioni -->
+    <div class="settings-field">
+      <label>
+        Sessioni massime
+        <span id="csm-sessions-val">illimitato</span>
+      </label>
+      <div class="settings-presets" id="csm-sessions-presets">
+        <button class="preset-btn" onclick="setMaxSessions(0)">∞ Illimitato</button>
+        <button class="preset-btn" onclick="setMaxSessions(50)">50</button>
+        <button class="preset-btn" onclick="setMaxSessions(100)">100</button>
+        <button class="preset-btn" onclick="setMaxSessions(250)">250</button>
+        <button class="preset-btn" onclick="setMaxSessions(500)">500</button>
+        <button class="preset-btn" onclick="setMaxSessions(1000)">1000</button>
+      </div>
+      <p class="hint">Quando il limite è raggiunto, le nuove sessioni vengono scartate silenziosamente. Usa <strong>∞ Illimitato</strong> per non porre vincoli.</p>
+    </div>
+
+    <!-- TTL -->
+    <div class="settings-field">
+      <label>
+        Conserva le sessioni per
+        <span id="csm-ttl-val">default globale</span>
+      </label>
+      <div class="settings-presets" id="csm-ttl-presets">
+        <button class="preset-btn" onclick="setTtl(0)">Default</button>
+        <button class="preset-btn" onclick="setTtl(7)">7 giorni</button>
+        <button class="preset-btn" onclick="setTtl(14)">14 giorni</button>
+        <button class="preset-btn" onclick="setTtl(30)">30 giorni</button>
+        <button class="preset-btn" onclick="setTtl(60)">60 giorni</button>
+        <button class="preset-btn" onclick="setTtl(90)">90 giorni</button>
+      </div>
+      <p class="hint"><strong>Default</strong> usa il valore globale del server (attualmente <span id="csm-global-ttl">30</span> giorni).</p>
+    </div>
+
+    <div class="modal-actions">
+      <button class="player-btn player-btn-ghost" onclick="closeClientSettings()">Annulla</button>
+      <button class="player-btn" onclick="saveClientSettings()">Salva impostazioni</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Modal snippet ───────────────────────────────────────────────────────── -->
 <div class="modal-overlay hidden" id="snippet-modal" onclick="closeSnippetModal(event)">
   <div class="modal">
@@ -1116,11 +1229,22 @@
     clients.forEach(function (c, i) {
       var color    = c.color || CLIENT_COLORS[i % CLIENT_COLORS.length];
       var isActive = currentClient && currentClient.id === c.id;
+      var limitBadge = '';
+      if (c.maxSessions > 0) {
+        var used = c.sessionCount || 0;
+        var pct  = Math.round(used / c.maxSessions * 100);
+        var col  = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
+        limitBadge = '<span title="' + used + '/' + c.maxSessions + ' sessioni" style="font-size:10px;color:' + col + ';margin-left:2px;">⬤</span>';
+      }
       rows += '<div class="client-item' + (isActive ? ' active' : '') + '" onclick="selectClient(\'' + c.id + '\')">' +
         '<div class="client-dot" style="background:' + color + ';flex-shrink:0"></div>' +
         '<span class="client-name">' + escHtml(c.name) + '</span>' +
+        limitBadge +
         '<span class="client-count">' + (c.sessionCount || 0) + '</span>' +
         '<div class="client-actions" onclick="event.stopPropagation()">' +
+          '<button class="client-action-btn" title="Impostazioni" onclick="openClientSettings(\'' + c.id + '\')">' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+          '</button>' +
           '<button class="client-action-btn" title="Rinomina" onclick="startRename(\'' + c.id + '\')">' +
             '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
           '</button>' +
@@ -1177,6 +1301,66 @@
         if (currentClient && currentClient.id === id) selectClient(null);
         else loadClients();
       });
+  };
+
+  // ── Impostazioni cliente ───────────────────────────────────────────────────
+  var settingsClientId  = null;
+  var settingsMaxSessions = 0;
+  var settingsTtl       = 0;
+
+  window.openClientSettings = function (id) {
+    var c = clients.find(function (x) { return x.id === id; });
+    if (!c) return;
+    settingsClientId    = id;
+    settingsMaxSessions = c.maxSessions || 0;
+    settingsTtl         = c.ttlDays     || 0;
+
+    document.getElementById('csm-title').textContent = 'Impostazioni — ' + c.name;
+    document.getElementById('csm-sub').textContent   = 'siteId: ' + c.siteId;
+
+    updateSettingsUI();
+    document.getElementById('client-settings-modal').classList.remove('hidden');
+  };
+
+  function updateSettingsUI() {
+    // Sessions label
+    var sv = document.getElementById('csm-sessions-val');
+    sv.textContent = settingsMaxSessions === 0 ? 'illimitato' : settingsMaxSessions + ' sessioni';
+
+    // Sessions presets highlight
+    var sBtns = document.querySelectorAll('#csm-sessions-presets .preset-btn');
+    var sVals = [0, 50, 100, 250, 500, 1000];
+    sBtns.forEach(function (b, i) { b.classList.toggle('active', sVals[i] === settingsMaxSessions); });
+
+    // TTL label
+    var tv = document.getElementById('csm-ttl-val');
+    tv.textContent = settingsTtl === 0 ? 'default globale' : settingsTtl + ' giorni';
+
+    // TTL presets highlight
+    var tBtns = document.querySelectorAll('#csm-ttl-presets .preset-btn');
+    var tVals = [0, 7, 14, 30, 60, 90];
+    tBtns.forEach(function (b, i) { b.classList.toggle('active', tVals[i] === settingsTtl); });
+  }
+
+  window.setMaxSessions = function (v) { settingsMaxSessions = v; updateSettingsUI(); };
+  window.setTtl         = function (v) { settingsTtl = v;         updateSettingsUI(); };
+
+  window.saveClientSettings = function () {
+    if (!settingsClientId) return;
+    fetch(API + '/api/clients/' + settingsClientId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maxSessions: settingsMaxSessions, ttlDays: settingsTtl }),
+    }).then(function () {
+      loadClients();
+      document.getElementById('client-settings-modal').classList.add('hidden');
+    });
+  };
+
+  window.closeClientSettings = function (e) {
+    if (!e || e.target === document.getElementById('client-settings-modal')) {
+      document.getElementById('client-settings-modal').classList.add('hidden');
+    }
   };
 
   function escHtml(s) {

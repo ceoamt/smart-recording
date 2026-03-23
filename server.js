@@ -87,17 +87,26 @@ function deleteEventFile(sessionId) {
   if (fs.existsSync(json)) fs.unlinkSync(json);
 }
 
-// ─── TTL cleanup ─────────────────────────────────────────────────────────────
+// ─── TTL cleanup (rispetta ttlDays per-cliente) ──────────────────────────────
 function cleanupExpiredSessions() {
   const sessions = readSessions();
-  const cutoff   = Date.now() - TTL_MS;
-  const expired  = sessions.filter(s => s.startTime < cutoff);
+  const clients  = readClients();
+  const clientMap = {};
+  clients.forEach(c => { clientMap[c.siteId] = c; });
+
+  const now = Date.now();
+  const expired = sessions.filter(s => {
+    const client  = clientMap[s.siteId];
+    const days    = (client && client.ttlDays > 0) ? client.ttlDays : TTL_DAYS;
+    const cutoff  = now - days * 24 * 60 * 60 * 1000;
+    return s.startTime < cutoff;
+  });
   if (!expired.length) return;
 
   expired.forEach(s => deleteEventFile(s.id));
-  const remaining = sessions.filter(s => s.startTime >= cutoff);
-  writeSessions(remaining);
-  console.log(`[TTL] Eliminate ${expired.length} sessioni più vecchie di ${TTL_DAYS} giorni.`);
+  const expiredIds = new Set(expired.map(s => s.id));
+  writeSessions(sessions.filter(s => !expiredIds.has(s.id)));
+  console.log(`[TTL] Eliminate ${expired.length} sessioni scadute.`);
 }
 
 // Esegui all'avvio e poi ogni 24 ore
@@ -175,10 +184,20 @@ async function router(req, res) {
 
     const siteId  = body.siteId || 'default';
     const clients = readClients();
-    if (!clients.find(c => c.siteId === siteId)) {
+    const client  = clients.find(c => c.siteId === siteId);
+    if (!client) {
       // Cliente non registrato: ignora silenziosamente (il tracker non deve crashare)
       json(res, 200, { ok: false, reason: 'unknown_site' });
       return;
+    }
+
+    // Limite massimo sessioni per cliente
+    if (client.maxSessions > 0) {
+      const clientCount = sessions.filter(s => s.siteId === siteId).length;
+      if (clientCount >= client.maxSessions) {
+        json(res, 200, { ok: false, reason: 'limit_reached' });
+        return;
+      }
     }
 
     const session = {
