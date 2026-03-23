@@ -234,8 +234,8 @@
 
     /* ── Sidebar sessioni ─────────────────────────────────────────────── */
     .sidebar {
-      width: 280px;
-      flex-shrink: 0;
+      flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--border);
@@ -311,78 +311,200 @@
     .chip:hover { border-color: var(--accent); color: var(--text); }
     .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+    /* ── Sessions table (Hotjar style) ──────────────────────────────── */
     .sessions-list {
       flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      overflow: auto;
     }
     .sessions-list::-webkit-scrollbar { width: 4px; }
     .sessions-list::-webkit-scrollbar-track { background: transparent; }
     .sessions-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    .session-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: background .15s, border-color .15s;
-      position: relative;
-    }
-    .session-card:hover { background: var(--surface2); border-color: var(--accent); }
-    .session-card.active { background: var(--surface2); border-color: var(--accent); }
-    .session-card-url {
+    .sessions-table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 12px;
-      color: var(--accent2);
+    }
+    .sessions-table thead th {
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 1;
       white-space: nowrap;
+    }
+    .sessions-table tbody tr {
+      border-bottom: 1px solid rgba(46,51,71,.6);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .sessions-table tbody tr:hover td { background: rgba(34,38,58,.6); }
+    .sessions-table tbody tr.active td { background: var(--surface2); }
+    .sessions-table tbody tr.active td:first-child {
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .sessions-table td {
+      padding: 7px 10px;
+      color: var(--text);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .td-url {
+      max-width: 220px;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 5px;
+      color: var(--accent2);
     }
-    .session-card-meta {
-      display: flex;
-      gap: 10px;
-      font-size: 11px;
+    .td-site {
+      max-width: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: var(--muted);
-      align-items: center;
-      flex-wrap: wrap;
+      font-size: 11px;
     }
-    .session-card-meta .tag {
-      display: flex;
-      align-items: center;
-      gap: 3px;
+    .td-tags { min-width: 60px; }
+    .td-date { color: var(--muted); font-size: 11px; min-width: 120px; }
+    .td-actions { white-space: nowrap; }
+
+    /* Star button */
+    .btn-star {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 2px 3px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1;
+      transition: color .1s;
     }
-    .badge {
+    .btn-star:hover, .btn-star.starred { color: var(--yellow); }
+
+    /* Play row button */
+    .btn-play-row {
+      background: var(--accent);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 11px;
       display: inline-flex;
       align-items: center;
-      gap: 3px;
-      padding: 2px 7px;
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .4px;
+      gap: 4px;
+      transition: opacity .1s;
+      white-space: nowrap;
     }
-    .badge-recording { background: rgba(224,82,82,.15); color: var(--red); }
-    .badge-completed  { background: rgba(76,175,125,.15); color: var(--green); }
+    .btn-play-row:hover { opacity: .8; }
 
-    .session-card-delete {
-      position: absolute;
-      top: 8px;
-      right: 8px;
+    /* Tag pills */
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 5px;
+      border-radius: 8px;
+      font-size: 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      margin: 1px 2px 1px 0;
+      white-space: nowrap;
+    }
+
+    /* Tag picker (in player toolbar) */
+    .tag-picker {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .tag-picker-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-right: 2px;
+    }
+    .tag-picker-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 3px 8px;
+      font-size: 12px;
+      transition: border-color .1s, background .1s;
+    }
+    .tag-picker-btn:hover { border-color: var(--accent); }
+    .tag-picker-btn.active { border-color: var(--accent); background: rgba(91,106,240,.18); }
+
+    /* Note input */
+    .session-note-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      padding: 4px 10px;
+      outline: none;
+      width: 180px;
+      transition: border-color .15s;
+      flex-shrink: 0;
+    }
+    .session-note-input:focus { border-color: var(--accent); }
+    .session-note-input::placeholder { color: var(--muted); }
+
+    /* Table action buttons */
+    .tbl-action {
       background: none;
       border: none;
       color: var(--muted);
       cursor: pointer;
-      padding: 3px;
+      padding: 3px 5px;
       border-radius: 4px;
-      display: none;
       line-height: 0;
+      transition: color .1s, background .1s;
     }
-    .session-card:hover .session-card-delete { display: block; }
-    .session-card-delete:hover { color: var(--red); background: rgba(224,82,82,.1); }
+    .tbl-action:hover { color: var(--text); background: var(--surface2); }
+    .tbl-action.del:hover { color: var(--red); background: rgba(224,82,82,.1); }
+    .tbl-action.del-confirm {
+      color: var(--red) !important;
+      background: rgba(224,82,82,.15) !important;
+      border: 1px solid rgba(224,82,82,.4);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      line-height: 1;
+      border-radius: 4px;
+    }
+
+    /* Share toast */
+    .share-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 13px;
+      color: var(--text);
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    .share-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     .empty-state {
       flex: 1;
@@ -411,13 +533,23 @@
 
     .player-toolbar {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 20px;
+      flex-direction: column;
+      gap: 0;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
       flex-shrink: 0;
+    }
+    .player-toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
       flex-wrap: wrap;
+    }
+    .player-toolbar-row + .player-toolbar-row {
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+      padding-bottom: 8px;
     }
 
     .btn-back {
@@ -827,25 +959,40 @@
     </div>
   </aside>
 
-  <!-- Area player -->
-  <main class="player-area" id="player-area">
+  <!-- Area player (nascosta finché non si seleziona una sessione) -->
+  <main class="player-area" id="player-area" style="display:none;">
 
     <!-- Toolbar player (nascosta finché non si seleziona una sessione) -->
     <div class="player-toolbar" id="player-toolbar" style="display:none;">
-      <button class="btn-back" onclick="backToList()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-        Lista
-      </button>
-      <div class="player-session-info">
-        <div class="player-session-url" id="player-url"></div>
-        <div class="player-session-meta" id="player-meta"></div>
+      <!-- Riga 1: info sessione + play + share -->
+      <div class="player-toolbar-row">
+        <button class="btn-back" onclick="backToList()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Lista
+        </button>
+        <div class="player-session-info">
+          <div class="player-session-url" id="player-url"></div>
+          <div class="player-session-meta" id="player-meta"></div>
+        </div>
+        <button class="player-btn player-btn-ghost" id="btn-play" onclick="startReplay()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Play
+        </button>
+        <button class="tbl-action" title="Copia link di condivisione" onclick="shareCurrentSession()" style="padding:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
       </div>
-      <button class="player-btn player-btn-ghost" id="btn-play" onclick="startReplay()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-          <polygon points="5 3 19 12 5 21 5 3"/>
-        </svg>
-        Play
-      </button>
+      <!-- Riga 2: tag + nota -->
+      <div class="player-toolbar-row">
+        <span class="tag-picker-label">Tag</span>
+        <button class="tag-picker-btn" onclick="quickTag('🐞 Bug')" id="tpick-0">🐞 Bug</button>
+        <button class="tag-picker-btn" onclick="quickTag('⚠️ UI/UX')" id="tpick-1">⚠️ UI/UX</button>
+        <button class="tag-picker-btn" onclick="quickTag('😕 Confusion')" id="tpick-2">😕 Confusion</button>
+        <button class="tag-picker-btn" onclick="quickTag('😡 Frustration')" id="tpick-3">😡 Frustration</button>
+        <button class="tag-picker-btn" onclick="quickTag('🎉 Success')" id="tpick-4">🎉 Success</button>
+        <button class="tag-picker-btn" onclick="quickTag('🏆 Conversion')" id="tpick-5">🏆 Conversion</button>
+        <input class="session-note-input" id="session-note-input" placeholder="Note…" onblur="saveNote(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="margin-left:auto;" />
+      </div>
     </div>
 
     <!-- Stato iniziale -->
@@ -886,6 +1033,9 @@
     </div>
   </div>
 </div>
+
+<!-- ── Share toast ──────────────────────────────────────────────────────────── -->
+<div class="share-toast" id="share-toast">🔗 Link copiato negli appunti!</div>
 
 <!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/rrweb@1/dist/rrweb.min.js"></script>
@@ -1102,7 +1252,9 @@
       });
   }
 
-  // ── Render lista ───────────────────────────────────────────────────────────
+  // ── Render lista (table view) ──────────────────────────────────────────────
+  var TAGS_LIST = ['🐞 Bug','⚠️ UI/UX','😕 Confusion','😡 Frustration','🎉 Success','🏆 Conversion'];
+
   function renderSessions(list) {
     var container = document.getElementById('sessions-list');
     if (list.length === 0) {
@@ -1110,30 +1262,51 @@
       return;
     }
 
-    container.innerHTML = list.map(function (s) {
-      var isActive = currentSession && currentSession.id === s.id ? ' active' : '';
-      var badge = s.status === 'recording'
-        ? '<span class="badge badge-recording">● Live</span>'
-        : '<span class="badge badge-completed">✓ Completata</span>';
+    var showSite = currentClient === null && clients.length > 1;
 
+    var headerCols = '<th></th><th title="Preferito">★</th>' +
+      '<th>Landing</th>' +
+      (showSite ? '<th>Cliente</th>' : '') +
+      '<th>Eventi</th><th>Durata</th><th>Dispositivo</th><th>Tag</th><th>Data</th><th></th>';
+
+    var rows = list.map(function (s) {
+      var isActive = currentSession && currentSession.id === s.id;
       var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
-      return '<div class="session-card' + isActive + '" onclick="selectSession(\'' + s.id + '\')">' +
-        '<button class="session-card-delete" title="Elimina" onclick="deleteSession(event,\'' + s.id + '\')">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
-        '</button>' +
-        '<div class="session-card-url">' + fmtShortUrl(s.url) + '</div>' +
-        '<div class="session-card-meta">' +
-          badge +
-          '<span class="tag">' + deviceIcon + ' ' + (s.deviceType || 'desktop') + '</span>' +
-          '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + fmtDuration(s.duration) + '</span>' +
-          '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' + fmtDate(s.startTime) + '</span>' +
-          '<span>' + fmtBrowser(s.userAgent) + '</span>' +
-          (s.os ? '<span>' + s.os + '</span>' : '') +
-          (s.language ? '<span>🌐 ' + s.language + '</span>' : '') +
-          '<span>' + (s.eventsCount || 0) + ' eventi</span>' +
-        '</div>' +
-      '</div>';
+      var tagHtml   = (s.tags || []).map(function (t) { return '<span class="tag-pill">' + t + '</span>'; }).join('');
+      var liveIndicator = s.status === 'recording' ? ' <span style="color:var(--red);font-size:10px;font-weight:700;">● LIVE</span>' : '';
+
+      return '<tr' + (isActive ? ' class="active"' : '') + ' onclick="selectSession(\'' + s.id + '\')">' +
+        '<td onclick="event.stopPropagation()" style="width:60px;padding:5px 6px;">' +
+          '<button class="btn-play-row" onclick="playSession(\'' + s.id + '\')">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play' +
+          '</button>' +
+        '</td>' +
+        '<td onclick="event.stopPropagation()" style="width:28px;padding:5px 4px;">' +
+          '<button class="btn-star' + (s.starred ? ' starred' : '') + '" onclick="toggleStar(\'' + s.id + '\')" title="Segna come preferito">★</button>' +
+        '</td>' +
+        '<td class="td-url" title="' + escHtml(s.url) + '">' + fmtShortUrl(s.url) + liveIndicator + '</td>' +
+        (showSite ? '<td class="td-site">' + escHtml(s.siteId || '') + '</td>' : '') +
+        '<td style="color:var(--muted)">' + (s.eventsCount || 0) + '</td>' +
+        '<td style="color:var(--muted)">' + fmtDuration(s.duration) + '</td>' +
+        '<td>' + deviceIcon + ' <span style="color:var(--muted)">' + fmtBrowser(s.userAgent) + (s.os ? ' · ' + s.os : '') + '</span></td>' +
+        '<td class="td-tags">' + tagHtml + '</td>' +
+        '<td class="td-date">' + fmtDate(s.startTime) + '</td>' +
+        '<td class="td-actions" onclick="event.stopPropagation()">' +
+          '<button class="tbl-action" title="Condividi" onclick="shareSession(\'' + s.id + '\')">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
+          '</button>' +
+          '<button class="tbl-action del" id="del-' + s.id + '" title="Elimina" onclick="deleteSession(event,\'' + s.id + '\')">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+          '</button>' +
+        '</td>' +
+      '</tr>';
     }).join('');
+
+    container.innerHTML =
+      '<table class="sessions-table">' +
+        '<thead><tr>' + headerCols + '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>';
   }
 
   // ── Filtri chips ───────────────────────────────────────────────────────────
@@ -1204,6 +1377,7 @@
 
     // Nascondi sidebar, mostra player
     document.querySelector('.sidebar').classList.add('hidden');
+    document.getElementById('player-area').style.display    = 'flex';
     document.getElementById('no-selection').style.display  = 'none';
     document.getElementById('player-toolbar').style.display = 'flex';
     document.getElementById('player-wrap').style.display    = 'none';
@@ -1223,6 +1397,17 @@
       '<span>' + (s.viewport.width || '?') + '×' + (s.viewport.height || '?') + '</span>' +
       (s.pixelRatio > 1 ? '<span>@' + s.pixelRatio + 'x</span>' : '') +
       '<span>' + (s.eventsCount || 0) + ' eventi</span>';
+
+    // Populate tag picker
+    var sessionTags = currentSession.tags || [];
+    TAGS_LIST.forEach(function (t, i) {
+      var btn = document.getElementById('tpick-' + i);
+      if (btn) btn.classList.toggle('active', sessionTags.indexOf(t) !== -1);
+    });
+
+    // Populate note
+    var noteInput = document.getElementById('session-note-input');
+    if (noteInput) noteInput.value = currentSession.note || '';
 
     // Reset player precedente
     if (player) { try { player.pause(); } catch(e){} player = null; }
@@ -1410,6 +1595,7 @@
   // ── Torna alla lista ───────────────────────────────────────────────────────
   window.backToList = function () {
     document.querySelector('.sidebar').classList.remove('hidden');
+    document.getElementById('player-area').style.display    = 'none';
     document.getElementById('no-selection').style.display  = 'flex';
     document.getElementById('player-toolbar').style.display = 'none';
     document.getElementById('player-wrap').style.display    = 'none';
@@ -1417,29 +1603,136 @@
     clearInterval(replayState.timer);
     document.getElementById('rrweb-player-container').innerHTML = '';
     currentSession = null;
-    renderSessions(sessions.filter(function (s) {
-      var q = document.getElementById('search-input').value.toLowerCase();
-      return !q || s.url.toLowerCase().includes(q);
-    }));
+    // Reset tag picker
+    TAGS_LIST.forEach(function (t, i) {
+      var btn = document.getElementById('tpick-' + i);
+      if (btn) btn.classList.remove('active');
+    });
+    var noteInput = document.getElementById('session-note-input');
+    if (noteInput) noteInput.value = '';
+    applyFilters();
   };
 
-  // ── Elimina sessione ───────────────────────────────────────────────────────
+  // ── Elimina sessione (doppia conferma) ────────────────────────────────────
+  var deleteTimers = {};
+
   window.deleteSession = function (e, id) {
     e.stopPropagation();
-    if (!confirm('Eliminare questa sessione?')) return;
-    fetch(API + '/api/sessions/' + id, { method: 'DELETE' })
-      .then(function () {
-        if (currentSession && currentSession.id === id) {
-          currentSession = null;
-          document.getElementById('no-selection').style.display  = 'flex';
-          document.getElementById('player-toolbar').style.display = 'none';
-          document.getElementById('player-wrap').style.display    = 'none';
-          if (player) { try { player.pause(); } catch(e){} player = null; }
-          clearInterval(replayState.timer);
-          document.getElementById('rrweb-player-container').innerHTML = '';
+    var btn = document.getElementById('del-' + id);
+    if (!btn) return;
+
+    if (btn.dataset.confirm === '1') {
+      // Seconda conferma: elimina
+      clearTimeout(deleteTimers[id]);
+      delete deleteTimers[id];
+      fetch(API + '/api/sessions/' + id, { method: 'DELETE' })
+        .then(function () {
+          if (currentSession && currentSession.id === id) {
+            currentSession = null;
+            document.querySelector('.sidebar').classList.remove('hidden');
+            document.getElementById('player-area').style.display    = 'none';
+            document.getElementById('no-selection').style.display  = 'flex';
+            document.getElementById('player-toolbar').style.display = 'none';
+            document.getElementById('player-wrap').style.display    = 'none';
+            if (player) { try { player.pause(); } catch(e){} player = null; }
+            clearInterval(replayState.timer);
+            document.getElementById('rrweb-player-container').innerHTML = '';
+          }
+          loadSessions();
+        });
+    } else {
+      // Prima conferma: chiedi conferma
+      btn.dataset.confirm = '1';
+      btn.className = 'tbl-action del-confirm';
+      btn.textContent = 'Elimina?';
+      deleteTimers[id] = setTimeout(function () {
+        delete deleteTimers[id];
+        if (btn) {
+          btn.dataset.confirm = '';
+          btn.className = 'tbl-action del';
+          btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
         }
-        loadSessions();
-      });
+      }, 3000);
+    }
+  };
+
+  // ── Segna come preferito ──────────────────────────────────────────────────
+  window.toggleStar = function (id) {
+    var s = sessions.find(function (x) { return x.id === id; });
+    if (!s) return;
+    var newVal = !s.starred;
+    s.starred = newVal;
+    if (currentSession && currentSession.id === id) currentSession.starred = newVal;
+    fetch(API + '/api/sessions/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ starred: newVal }),
+    });
+    applyFilters();
+  };
+
+  // ── Tag rapidi ────────────────────────────────────────────────────────────
+  window.quickTag = function (tag) {
+    if (!currentSession) return;
+    var tags = (currentSession.tags || []).slice();
+    var idx  = tags.indexOf(tag);
+    if (idx === -1) tags.push(tag);
+    else            tags.splice(idx, 1);
+    currentSession.tags = tags;
+    var s = sessions.find(function (x) { return x.id === currentSession.id; });
+    if (s) s.tags = tags;
+    // Update tag picker buttons
+    TAGS_LIST.forEach(function (t, i) {
+      var btn = document.getElementById('tpick-' + i);
+      if (btn) btn.classList.toggle('active', tags.indexOf(t) !== -1);
+    });
+    // Patch server
+    fetch(API + '/api/sessions/' + currentSession.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: tags }),
+    });
+  };
+
+  // ── Salva nota ────────────────────────────────────────────────────────────
+  window.saveNote = function (val) {
+    if (!currentSession) return;
+    var note = val.trim();
+    currentSession.note = note;
+    var s = sessions.find(function (x) { return x.id === currentSession.id; });
+    if (s) s.note = note;
+    fetch(API + '/api/sessions/' + currentSession.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note }),
+    });
+  };
+
+  // ── Condividi sessione ────────────────────────────────────────────────────
+  function showShareToast() {
+    var toast = document.getElementById('share-toast');
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 2500);
+  }
+
+  window.shareSession = function (id) {
+    var url = window.location.origin + window.location.pathname + '?session=' + id;
+    navigator.clipboard.writeText(url).catch(function () {
+      // Fallback: prompt
+      window.prompt('Copia il link:', url);
+    });
+    showShareToast();
+  };
+
+  window.shareCurrentSession = function () {
+    if (currentSession) shareSession(currentSession.id);
+  };
+
+  // ── Play diretto da tabella ───────────────────────────────────────────────
+  window.playSession = function (id) {
+    selectSession(id);
+    // Piccolo delay per dare il tempo al DOM di aggiornarsi
+    setTimeout(function () { startReplay(); }, 50);
   };
 
   // ── Modal snippet ──────────────────────────────────────────────────────────
@@ -1626,8 +1919,29 @@
   setInterval(function () { loadSessions(); loadClients(); }, 15000);
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  // Controlla se c'è un ?session=ID nell'URL (link condiviso)
+  var sharedSessionId = new URLSearchParams(window.location.search).get('session');
+
   loadClients();
-  loadSessions();
+  // Prima carica tutte le sessioni, poi eventualmente auto-seleziona
+  fetch(API + '/api/sessions')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      sessions = data;
+      renderFilterChips();
+      applyFilters();
+      updateStats();
+      renderClients();
+      // Auto-seleziona sessione da URL condiviso
+      if (sharedSessionId) {
+        var target = sessions.find(function (s) { return s.id === sharedSessionId; });
+        if (target) setTimeout(function () { playSession(sharedSessionId); }, 300);
+      }
+    })
+    .catch(function () {
+      document.getElementById('sessions-list').innerHTML =
+        '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Impossibile contattare il server.<br/>Verifica che sia avviato.</span></div>';
+    });
 
 })();
 </script>

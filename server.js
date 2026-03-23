@@ -325,6 +325,22 @@ async function router(req, res) {
     return;
   }
 
+  // ── PATCH /api/sessions/:id (tags, starred, note) ────────────────────────
+  const patchMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
+  if (method === 'PATCH' && patchMatch) {
+    const id       = patchMatch[1];
+    const body     = await readBody(req);
+    const sessions = readSessions();
+    const idx      = sessions.findIndex(s => s.id === id);
+    if (idx === -1) { json(res, 404, { error: 'not found' }); return; }
+    if (body.tags    !== undefined) sessions[idx].tags    = body.tags;
+    if (body.starred !== undefined) sessions[idx].starred = body.starred;
+    if (body.note    !== undefined) sessions[idx].note    = body.note;
+    writeSessions(sessions);
+    json(res, 200, sessions[idx]);
+    return;
+  }
+
   // ── DELETE /api/sessions/:id ──────────────────────────────────────────────
   const delMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
   if (method === 'DELETE' && delMatch) {
