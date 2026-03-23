@@ -94,7 +94,7 @@
 
     /* ── Pannello clienti ─────────────────────────────────────────────── */
     .clients-panel {
-      width: 220px;
+      width: 180px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
@@ -234,7 +234,7 @@
 
     /* ── Sidebar sessioni ─────────────────────────────────────────────── */
     .sidebar {
-      width: 320px;
+      width: 280px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
@@ -381,6 +381,8 @@
       overflow: hidden;
     }
 
+    .sidebar.hidden { display: none; }
+
     .player-toolbar {
       display: flex;
       align-items: center;
@@ -391,6 +393,22 @@
       flex-shrink: 0;
       flex-wrap: wrap;
     }
+
+    .btn-back {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: color .12s, background .12s;
+    }
+    .btn-back:hover { color: var(--text); background: var(--surface2); }
 
     .player-session-info {
       display: flex;
@@ -679,6 +697,10 @@
 
     <!-- Toolbar player (nascosta finché non si seleziona una sessione) -->
     <div class="player-toolbar" id="player-toolbar" style="display:none;">
+      <button class="btn-back" onclick="backToList()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Lista
+      </button>
       <div class="player-session-info">
         <div class="player-session-url" id="player-url"></div>
         <div class="player-session-meta" id="player-meta"></div>
@@ -985,7 +1007,8 @@
       return !q || s.url.toLowerCase().includes(q);
     }));
 
-    // Mostra toolbar player
+    // Nascondi sidebar, mostra player
+    document.querySelector('.sidebar').classList.add('hidden');
     document.getElementById('no-selection').style.display  = 'none';
     document.getElementById('player-toolbar').style.display = 'flex';
     document.getElementById('player-wrap').style.display    = 'none';
@@ -1179,6 +1202,22 @@
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
         alert('Errore nel caricamento degli eventi: ' + err.message);
       });
+  };
+
+  // ── Torna alla lista ───────────────────────────────────────────────────────
+  window.backToList = function () {
+    document.querySelector('.sidebar').classList.remove('hidden');
+    document.getElementById('no-selection').style.display  = 'flex';
+    document.getElementById('player-toolbar').style.display = 'none';
+    document.getElementById('player-wrap').style.display    = 'none';
+    if (player) { try { player.pause(); } catch(e){} player = null; }
+    clearInterval(replayState.timer);
+    document.getElementById('rrweb-player-container').innerHTML = '';
+    currentSession = null;
+    renderSessions(sessions.filter(function (s) {
+      var q = document.getElementById('search-input').value.toLowerCase();
+      return !q || s.url.toLowerCase().includes(q);
+    }));
   };
 
   // ── Elimina sessione ───────────────────────────────────────────────────────
