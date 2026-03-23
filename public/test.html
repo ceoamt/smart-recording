@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pagina di Test – Smart Recording</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f6fa;
+      color: #1a1d27;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e2e4ed;
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 16px; font-weight: 700; }
+    .badge-test {
+      font-size: 11px;
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffc107;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-weight: 600;
+    }
+
+    .main { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+
+    .notice {
+      background: #e8f4fd;
+      border: 1px solid #b3d9f7;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #0c5d8a;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e2e4ed;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: box-shadow .15s, border-color .15s;
+    }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); border-color: #5b6af0; }
+    .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .card p  { font-size: 12px; color: #7a7f9a; line-height: 1.5; }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .task-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+
+    .task-item {
+      background: #fff;
+      border: 1px solid #e2e4ed;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .task-item:hover { background: #f8f9ff; }
+    .task-check {
+      width: 18px; height: 18px;
+      border: 2px solid #c5c8d6;
+      border-radius: 50%;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .task-check.done { background: #4caf7d; border-color: #4caf7d; }
+    .task-text { flex: 1; font-size: 14px; }
+    .task-text.done { text-decoration: line-through; color: #aaa; }
+    .task-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .tag-blue   { background: #e8f0fe; color: #3b5bdb; }
+    .tag-green  { background: #e6f9f0; color: #2e7d52; }
+    .tag-orange { background: #fff3e0; color: #c06000; }
+
+    .form-area {
+      background: #fff;
+      border: 1px solid #e2e4ed;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .form-area h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .form-row { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      border: 1px solid #e2e4ed;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #5b6af0; }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn {
+      background: #5b6af0;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-ghost {
+      background: #f0f1f8;
+      color: #444;
+      margin-left: 8px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #7a7f9a;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Demo App — Smart Recording Test</h1>
+  <span class="badge-test">⚫ Sessione registrata</span>
+</header>
+
+<div class="main">
+
+  <div class="notice">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    Questa pagina registra automaticamente la tua sessione. Naviga, clicca, compila i campi — poi vai alla <a href="/" style="color:#0c5d8a;font-weight:600;">dashboard</a> per vedere il replay.
+  </div>
+
+  <div class="section-title">Panoramica</div>
+  <div class="card-grid">
+    <div class="card" onclick="this.style.background='#f0f2ff'">
+      <div class="card-icon" style="background:#e8f0fe;">📋</div>
+      <h3>Task attivi</h3>
+      <p>12 task in corso, 3 in scadenza oggi</p>
+    </div>
+    <div class="card" onclick="this.style.background='#f0fff8'">
+      <div class="card-icon" style="background:#e6f9f0;">✅</div>
+      <h3>Completati</h3>
+      <p>47 task completati questo mese</p>
+    </div>
+    <div class="card" onclick="this.style.background='#fff8f0'">
+      <div class="card-icon" style="background:#fff3e0;">👥</div>
+      <h3>Team</h3>
+      <p>5 membri attivi nel workspace</p>
+    </div>
+  </div>
+
+  <div class="section-title">Task recenti</div>
+  <div class="task-list" id="task-list">
+    <div class="task-item">
+      <div class="task-check" onclick="toggleTask(this)"></div>
+      <span class="task-text">Aggiornare la documentazione API</span>
+      <span class="task-tag tag-blue">Dev</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check" onclick="toggleTask(this)"></div>
+      <span class="task-text">Review del design della nuova landing</span>
+      <span class="task-tag tag-orange">Design</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check done" onclick="toggleTask(this)"></div>
+      <span class="task-text done">Invio report mensile al cliente</span>
+      <span class="task-tag tag-green">Marketing</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check" onclick="toggleTask(this)"></div>
+      <span class="task-text">Configurare ambiente di staging</span>
+      <span class="task-tag tag-blue">Dev</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check" onclick="toggleTask(this)"></div>
+      <span class="task-text">Analisi feedback utenti Q1 2025</span>
+      <span class="task-tag tag-orange">Product</span>
+    </div>
+  </div>
+
+  <div class="form-area">
+    <h2>Nuovo task</h2>
+    <div class="form-row">
+      <label>Titolo</label>
+      <input type="text" placeholder="Es. Preparare presentazione board…" />
+    </div>
+    <div class="form-row">
+      <label>Descrizione</label>
+      <textarea placeholder="Aggiungi dettagli…"></textarea>
+    </div>
+    <div class="form-row">
+      <label>Priorità</label>
+      <select>
+        <option>Bassa</option>
+        <option>Media</option>
+        <option selected>Alta</option>
+        <option>Urgente</option>
+      </select>
+    </div>
+    <button class="btn">Crea task</button>
+    <button class="btn btn-ghost">Annulla</button>
+  </div>
+
+</div>
+
+<!-- Tracker Smart Recording (punta al server locale) -->
+<script>
+  window.SmartRecordingConfig = {
+    serverUrl: window.location.origin,
+    maskInputs: false,
+  };
+</script>
+<script src="/tracker.js"></script>
+
+<script>
+  function toggleTask(el) {
+    el.classList.toggle('done');
+    var text = el.nextElementSibling;
+    text.classList.toggle('done');
+  }
+</script>
+
+</body>
+</html>

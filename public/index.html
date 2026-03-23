@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Recording – Dashboard</title>
+
+  <style>
+    /* rrweb replayer wrapper */
+    .replayer-wrapper { position: relative; }
+    .replayer-wrapper iframe { border: none; pointer-events: none; }
+    .replayer-mouse {
+      position: absolute; width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid rgba(0,0,0,.5); background: rgba(255,255,255,.7);
+      transform: translate(-50%,-50%); pointer-events: none; transition: left .05s, top .05s;
+    }
+    .replayer-mouse-tail { position: absolute; pointer-events: none; }
+  </style>
+
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --surface2: #22263a;
+      --border:   #2e3347;
+      --accent:   #5b6af0;
+      --accent2:  #7c89ff;
+      --text:     #e4e6f0;
+      --muted:    #7a7f9a;
+      --red:      #e05252;
+      --green:    #4caf7d;
+      --yellow:   #f0a830;
+      --radius:   10px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Topbar ───────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .topbar-logo svg { color: var(--accent2); }
+    .topbar-tag {
+      font-size: 11px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-weight: 600;
+      letter-spacing: .4px;
+    }
+    .topbar-spacer { flex: 1; }
+    .topbar-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .topbar-stats strong { color: var(--text); font-size: 14px; }
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Pannello clienti ─────────────────────────────────────────────── */
+    .clients-panel {
+      width: 220px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .clients-panel-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .clients-panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+    .client-add-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 6px;
+      font-size: 16px;
+      line-height: 1;
+      transition: color .15s, border-color .15s;
+    }
+    .client-add-btn:hover { color: var(--text); border-color: var(--accent); }
+    .clients-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .clients-list::-webkit-scrollbar { width: 3px; }
+    .clients-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .client-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background .12s;
+      position: relative;
+    }
+    .client-item:hover { background: var(--surface); }
+    .client-item.active { background: var(--surface2); }
+    .client-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 20%; bottom: 20%;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 0 3px 3px 0;
+    }
+    .client-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .client-name {
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .client-count {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 1px 6px;
+    }
+
+    /* Modal nuovo cliente */
+    .client-new-form {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .client-new-form input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+    }
+    .client-new-form input:focus { border-color: var(--accent); }
+    .client-new-form-btns { display: flex; gap: 6px; }
+
+    .client-actions {
+      display: none;
+      gap: 2px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .client-item:hover .client-actions { display: flex; }
+    .client-action-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 5px;
+      border-radius: 4px;
+      line-height: 0;
+      transition: color .12s, background .12s;
+    }
+    .client-action-btn:hover { color: var(--text); background: var(--border); }
+    .client-action-btn.del:hover { color: var(--red); background: rgba(224,82,82,.12); }
+
+    /* Inline rename input */
+    .client-rename-input {
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      padding: 2px 7px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Sidebar sessioni ─────────────────────────────────────────────── */
+    .sidebar {
+      width: 320px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-search {
+      position: relative;
+    }
+    .sidebar-search input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 12px 7px 32px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .sidebar-search input:focus { border-color: var(--accent); }
+    .sidebar-search svg {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sessions-list::-webkit-scrollbar { width: 4px; }
+    .sessions-list::-webkit-scrollbar-track { background: transparent; }
+    .sessions-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .session-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      position: relative;
+    }
+    .session-card:hover { background: var(--surface2); border-color: var(--accent); }
+    .session-card.active { background: var(--surface2); border-color: var(--accent); }
+    .session-card-url {
+      font-size: 12px;
+      color: var(--accent2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 5px;
+    }
+    .session-card-meta {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .session-card-meta .tag {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .badge-recording { background: rgba(224,82,82,.15); color: var(--red); }
+    .badge-completed  { background: rgba(76,175,125,.15); color: var(--green); }
+
+    .session-card-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px;
+      border-radius: 4px;
+      display: none;
+      line-height: 0;
+    }
+    .session-card:hover .session-card-delete { display: block; }
+    .session-card-delete:hover { color: var(--red); background: rgba(224,82,82,.1); }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      gap: 10px;
+      font-size: 13px;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .empty-state svg { color: var(--border); }
+
+    /* ── Player area ──────────────────────────────────────────────────── */
+    .player-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .player-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .player-session-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+    .player-session-url {
+      font-size: 13px;
+      color: var(--accent2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .player-session-meta {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 14px;
+    }
+
+    .player-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity .15s;
+      flex-shrink: 0;
+    }
+    .player-btn:hover { opacity: .85; }
+    .player-btn:disabled { opacity: .4; cursor: default; }
+    .player-btn-ghost {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .player-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    #rrweb-player-container {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .replay-frame {
+      background: #fff;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .replay-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+    }
+    .replay-progress {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      margin: 0 4px;
+    }
+    .replay-progress:hover { height: 8px; }
+    .replay-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      width: 0%;
+      pointer-events: none;
+    }
+    .replay-progress-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      left: 0%;
+      pointer-events: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
+      opacity: 0;
+      transition: opacity .1s;
+    }
+    .replay-progress:hover .replay-progress-thumb { opacity: 1; }
+    .replay-time {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 80px;
+      text-align: right;
+    }
+    .replay-speed {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .no-selection {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      gap: 14px;
+      font-size: 14px;
+    }
+    .no-selection svg { color: var(--border); }
+    .no-selection h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+
+    /* ── Snippet modal ────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      width: 560px;
+      max-width: 95vw;
+    }
+    .modal h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .modal p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12px;
+      color: var(--accent2);
+      white-space: pre;
+      overflow-x: auto;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* ── Scrollbar globale ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Spinner ──────────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Topbar ──────────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <a class="topbar-logo" href="#">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+    </svg>
+    Smart Recording
+  </a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-stats">
+    <span>Sessioni: <strong id="stat-total">–</strong></span>
+    <span>Oggi: <strong id="stat-today">–</strong></span>
+  </div>
+  <button class="player-btn" onclick="openSnippetModal()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+    </svg>
+    Installa Tracker
+  </button>
+</header>
+
+<!-- ── Layout principale ──────────────────────────────────────────────────── -->
+<div class="layout">
+
+  <!-- Pannello clienti -->
+  <nav class="clients-panel">
+    <div class="clients-panel-header">
+      <span class="clients-panel-title">Clienti</span>
+      <button class="client-add-btn" onclick="toggleNewClientForm()" title="Nuovo cliente">+</button>
+    </div>
+    <!-- Form nuovo cliente (nascosto) -->
+    <div class="client-new-form" id="client-new-form" style="display:none;">
+      <input type="text" id="client-name-input" placeholder="Nome cliente…" />
+      <input type="text" id="client-siteid-input" placeholder="siteId (es: teamtask)" />
+      <div class="client-new-form-btns">
+        <button class="player-btn" style="flex:1;padding:5px;font-size:12px;" onclick="createClient()">Crea</button>
+        <button class="player-btn player-btn-ghost" style="flex:1;padding:5px;font-size:12px;" onclick="toggleNewClientForm()">Annulla</button>
+      </div>
+    </div>
+    <div class="clients-list" id="clients-list">
+      <div class="empty-state" style="padding:20px 10px;font-size:12px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar sessioni -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <span id="sessions-sidebar-title">Sessioni</span>
+        <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="loadSessions()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Aggiorna
+        </button>
+      </div>
+      <div class="sidebar-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
+      </div>
+    </div>
+    <div class="sessions-list" id="sessions-list">
+      <div class="empty-state">
+        <div class="spinner"></div>
+        <span>Caricamento…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Area player -->
+  <main class="player-area" id="player-area">
+
+    <!-- Toolbar player (nascosta finché non si seleziona una sessione) -->
+    <div class="player-toolbar" id="player-toolbar" style="display:none;">
+      <div class="player-session-info">
+        <div class="player-session-url" id="player-url"></div>
+        <div class="player-session-meta" id="player-meta"></div>
+      </div>
+      <button class="player-btn player-btn-ghost" id="btn-play" onclick="startReplay()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Play
+      </button>
+    </div>
+
+    <!-- Stato iniziale -->
+    <div class="no-selection" id="no-selection">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      <h2>Nessuna sessione selezionata</h2>
+      <p>Seleziona una sessione dalla lista per avviare il replay.</p>
+    </div>
+
+    <!-- Container rrweb-player -->
+    <div class="player-wrap" id="player-wrap" style="display:none;">
+      <div id="rrweb-player-container"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Modal snippet ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="snippet-modal" onclick="closeSnippetModal(event)">
+  <div class="modal">
+    <h3>Installa il Tracker</h3>
+    <p>Aggiungi questo tag <code>&lt;script&gt;</code> prima della chiusura di <code>&lt;/body&gt;</code> in ogni pagina che vuoi monitorare.</p>
+    <div class="code-block" id="snippet-code"></div>
+    <p style="font-size:12px;margin-bottom:0;color:var(--muted);">
+      Incollalo prima di <code>&lt;/body&gt;</code> in qualsiasi pagina HTML da monitorare.
+      Sostituisci <code>serverUrl</code> con l'URL del server in produzione.
+    </p>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="player-btn player-btn-ghost" onclick="closeSnippetModal()">Chiudi</button>
+      <button class="player-btn" onclick="copySnippet()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Copia codice
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/rrweb@1/dist/rrweb.min.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var API            = '';
+  var sessions       = [];
+  var clients        = [];
+  var currentSession = null;
+  var currentClient  = null;  // null = tutti
+  var player         = null;
+
+  // Colori ciclici per i clienti
+  var CLIENT_COLORS = ['#5b6af0','#f06b5b','#4caf7d','#f0a830','#a855f7','#06b6d4','#f43f5e','#84cc16'];
+
+  // ── Formattazione ──────────────────────────────────────────────────────────
+  function fmtDuration(ms) {
+    if (!ms) return '–';
+    var s = Math.floor(ms / 1000);
+    var m = Math.floor(s / 60);
+    s = s % 60;
+    return m > 0 ? m + 'm ' + s + 's' : s + 's';
+  }
+
+  function fmtDate(ts) {
+    if (!ts) return '–';
+    var d = new Date(ts);
+    return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+      + ' ' + d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function fmtShortUrl(url) {
+    try {
+      var u = new URL(url);
+      return u.hostname + u.pathname;
+    } catch { return url; }
+  }
+
+  function fmtBrowser(ua) {
+    if (!ua) return '–';
+    if (/Firefox/i.test(ua))  return 'Firefox';
+    if (/Edg/i.test(ua))      return 'Edge';
+    if (/OPR|Opera/i.test(ua))return 'Opera';
+    if (/Chrome/i.test(ua))   return 'Chrome';
+    if (/Safari/i.test(ua))   return 'Safari';
+    return 'Browser';
+  }
+
+  // ── Carica clienti ─────────────────────────────────────────────────────────
+  window.loadClients = function loadClients() {
+    fetch(API + '/api/clients')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        clients = data;
+        renderClients();
+      });
+  }
+
+  function renderClients() {
+    var container = document.getElementById('clients-list');
+    var allCount  = sessions.length;
+    var rows = '<div class="client-item' + (currentClient === null ? ' active' : '') + '" onclick="selectClient(null)">' +
+      '<div class="client-dot" style="background:var(--muted)"></div>' +
+      '<span class="client-name">Tutti i clienti</span>' +
+      '<span class="client-count">' + allCount + '</span>' +
+    '</div>';
+
+    clients.forEach(function (c, i) {
+      var color    = c.color || CLIENT_COLORS[i % CLIENT_COLORS.length];
+      var isActive = currentClient && currentClient.id === c.id;
+      rows += '<div class="client-item' + (isActive ? ' active' : '') + '" onclick="selectClient(\'' + c.id + '\')">' +
+        '<div class="client-dot" style="background:' + color + ';flex-shrink:0"></div>' +
+        '<span class="client-name">' + escHtml(c.name) + '</span>' +
+        '<span class="client-count">' + (c.sessionCount || 0) + '</span>' +
+        '<div class="client-actions" onclick="event.stopPropagation()">' +
+          '<button class="client-action-btn" title="Rinomina" onclick="startRename(\'' + c.id + '\')">' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+          '</button>' +
+          '<button class="client-action-btn del" title="Elimina" onclick="deleteClient(\'' + c.id + '\',\'' + escHtml(c.name) + '\')">' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    });
+
+    if (clients.length === 0) {
+      rows += '<div style="padding:12px 10px;font-size:11px;color:var(--muted);">Nessun cliente.<br/>Clicca + per aggiungerne uno.</div>';
+    }
+    container.innerHTML = rows;
+  }
+
+  window.startRename = function (id) {
+    var client = clients.find(function (c) { return c.id === id; });
+    if (!client) return;
+    // Trova il .client-name nell'elemento e sostituiscilo con un input
+    var items = document.querySelectorAll('.client-item');
+    var target = null;
+    items.forEach(function (el) {
+      if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(id)) target = el;
+    });
+    if (!target) return;
+    var nameEl = target.querySelector('.client-name');
+    var input  = document.createElement('input');
+    input.className = 'client-rename-input';
+    input.value = client.name;
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    function confirm() {
+      var newName = input.value.trim();
+      if (!newName || newName === client.name) { renderClients(); return; }
+      fetch(API + '/api/clients/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      }).then(function () { loadClients(); });
+    }
+    input.addEventListener('blur', confirm);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter')  { input.removeEventListener('blur', confirm); confirm(); }
+      if (e.key === 'Escape') { input.removeEventListener('blur', confirm); renderClients(); }
+    });
+  };
+
+  window.deleteClient = function (id, name) {
+    if (!confirm('Eliminare il cliente "' + name + '"?\nLe sessioni registrate non verranno cancellate.')) return;
+    fetch(API + '/api/clients/' + id, { method: 'DELETE' })
+      .then(function () {
+        if (currentClient && currentClient.id === id) selectClient(null);
+        else loadClients();
+      });
+  };
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  window.selectClient = function (id) {
+    currentClient = id ? clients.find(function (c) { return c.id === id; }) : null;
+    renderClients();
+    var title = currentClient ? currentClient.name : 'Sessioni';
+    document.getElementById('sessions-sidebar-title').textContent = title;
+    loadSessions();
+  };
+
+  window.toggleNewClientForm = function () {
+    var form = document.getElementById('client-new-form');
+    var visible = form.style.display !== 'none';
+    form.style.display = visible ? 'none' : 'flex';
+    if (!visible) document.getElementById('client-name-input').focus();
+  };
+
+  window.createClient = function () {
+    var name   = document.getElementById('client-name-input').value.trim();
+    var siteId = document.getElementById('client-siteid-input').value.trim();
+    if (!name || !siteId) { alert('Compila nome e siteId.'); return; }
+    fetch(API + '/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, siteId: siteId }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (c) {
+        if (c.error) { alert(c.error); return; }
+        document.getElementById('client-name-input').value  = '';
+        document.getElementById('client-siteid-input').value = '';
+        document.getElementById('client-new-form').style.display = 'none';
+        loadClients();
+      });
+  };
+
+  // ── Carica sessioni ─────────────────────────────────────────────────────────
+  window.loadSessions = function () {
+    var url = API + '/api/sessions';
+    if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        sessions = data;
+        renderSessions(sessions);
+        updateStats();
+        renderClients(); // aggiorna contatori
+      })
+      .catch(function () {
+        document.getElementById('sessions-list').innerHTML =
+          '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Impossibile contattare il server.<br/>Verifica che sia avviato.</span></div>';
+      });
+  };
+
+  function updateStats() {
+    // Stats sempre su tutte le sessioni
+    fetch(API + '/api/sessions')
+      .then(function (r) { return r.json(); })
+      .then(function (all) {
+        document.getElementById('stat-total').textContent = all.length;
+        var today = new Date().toDateString();
+        var todayCount = all.filter(function (s) {
+          return new Date(s.startTime).toDateString() === today;
+        }).length;
+        document.getElementById('stat-today').textContent = todayCount;
+      });
+  }
+
+  // ── Render lista ───────────────────────────────────────────────────────────
+  function renderSessions(list) {
+    var container = document.getElementById('sessions-list');
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>Nessuna sessione registrata.<br/>Installa il tracker per iniziare.</span></div>';
+      return;
+    }
+
+    container.innerHTML = list.map(function (s) {
+      var isActive = currentSession && currentSession.id === s.id ? ' active' : '';
+      var badge = s.status === 'recording'
+        ? '<span class="badge badge-recording">● Live</span>'
+        : '<span class="badge badge-completed">✓ Completata</span>';
+
+      return '<div class="session-card' + isActive + '" onclick="selectSession(\'' + s.id + '\')">' +
+        '<button class="session-card-delete" title="Elimina" onclick="deleteSession(event,\'' + s.id + '\')">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+        '</button>' +
+        '<div class="session-card-url">' + fmtShortUrl(s.url) + '</div>' +
+        '<div class="session-card-meta">' +
+          badge +
+          '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + fmtDuration(s.duration) + '</span>' +
+          '<span class="tag"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' + fmtDate(s.startTime) + '</span>' +
+          '<span>' + fmtBrowser(s.userAgent) + '</span>' +
+          '<span>' + (s.eventsCount || 0) + ' eventi</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // ── Filtro ricerca ─────────────────────────────────────────────────────────
+  window.filterSessions = function () {
+    var q = document.getElementById('search-input').value.toLowerCase();
+    var filtered = sessions.filter(function (s) {
+      return s.url.toLowerCase().includes(q) || (s.userAgent || '').toLowerCase().includes(q);
+    });
+    renderSessions(filtered);
+  };
+
+  // ── Seleziona sessione ─────────────────────────────────────────────────────
+  window.selectSession = function (id) {
+    currentSession = sessions.find(function (s) { return s.id === id; });
+    if (!currentSession) return;
+
+    // Aggiorna sidebar
+    renderSessions(sessions.filter(function (s) {
+      var q = document.getElementById('search-input').value.toLowerCase();
+      return !q || s.url.toLowerCase().includes(q);
+    }));
+
+    // Mostra toolbar player
+    document.getElementById('no-selection').style.display  = 'none';
+    document.getElementById('player-toolbar').style.display = 'flex';
+    document.getElementById('player-wrap').style.display    = 'none';
+
+    document.getElementById('player-url').textContent = currentSession.url;
+    document.getElementById('player-meta').innerHTML =
+      '<span>' + fmtDate(currentSession.startTime) + '</span>' +
+      '<span>Durata: ' + fmtDuration(currentSession.duration) + '</span>' +
+      '<span>' + fmtBrowser(currentSession.userAgent) + '</span>' +
+      '<span>' + (currentSession.viewport.width || '?') + '×' + (currentSession.viewport.height || '?') + '</span>' +
+      '<span>' + (currentSession.eventsCount || 0) + ' eventi</span>';
+
+    // Reset player precedente
+    if (player) { try { player.pause(); } catch(e){} player = null; }
+    clearInterval(replayState.timer);
+    document.getElementById('rrweb-player-container').innerHTML = '';
+  };
+
+  // ── Avvia replay ───────────────────────────────────────────────────────────
+  var replayState = { playing: false, duration: 0, current: 0, timer: null };
+
+  function fmtTime(ms) {
+    var s = Math.floor((ms || 0) / 1000);
+    var m = Math.floor(s / 60); s = s % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function updateProgressBar() {
+    if (!replayState.duration) return;
+    var pct = Math.min(100, (replayState.current / replayState.duration) * 100);
+    var fill  = document.getElementById('replay-fill');
+    var thumb = document.getElementById('replay-thumb');
+    var time  = document.getElementById('replay-time');
+    if (fill)  fill.style.width   = pct + '%';
+    if (thumb) thumb.style.left   = pct + '%';
+    if (time)  time.textContent   = fmtTime(replayState.current) + ' / ' + fmtTime(replayState.duration);
+  }
+
+  window.seekTo = function (e) {
+    if (!player || !replayState.duration) return;
+    var bar  = document.getElementById('replay-progress');
+    var rect = bar.getBoundingClientRect();
+    var pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    var ms   = Math.round(pct * replayState.duration);
+    replayState.current = ms;
+    replayState.playing = true;
+    updateProgressBar();
+    player.play(ms);
+    var btn = document.getElementById('btn-toggle-play');
+    if (btn) btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pausa';
+  };
+
+  window.togglePlayPause = function () {
+    if (!player) return;
+    var btn = document.getElementById('btn-toggle-play');
+    if (replayState.playing) {
+      player.pause();
+      replayState.playing = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+    } else {
+      player.play();
+      replayState.playing = true;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pausa';
+    }
+  };
+
+  window.changeSpeed = function (sel) {
+    if (!player) return;
+    player.setConfig({ speed: parseFloat(sel.value) });
+  };
+
+  window.startReplay = function () {
+    if (!currentSession) return;
+    var btn = document.getElementById('btn-play');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;"></div> Caricamento…';
+
+    fetch(API + '/api/sessions/' + currentSession.id + '/events')
+      .then(function (r) { return r.json(); })
+      .then(function (events) {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+
+        if (!events || events.length === 0) {
+          alert('Nessun evento registrato per questa sessione.');
+          return;
+        }
+
+        document.getElementById('player-wrap').style.display = 'flex';
+
+        var container = document.getElementById('rrweb-player-container');
+        container.innerHTML = '';
+
+        // Stop player precedente
+        if (player) { try { player.pause(); } catch(e){} player = null; }
+        clearInterval(replayState.timer);
+
+        // Aspetta reflow per leggere offsetWidth corretto
+        setTimeout(function () {
+          var vp   = currentSession.viewport || {};
+          var vpW  = vp.width  || 1280;
+          var vpH  = vp.height || 800;
+          var playerArea = document.getElementById('player-area');
+          var areaW = playerArea.offsetWidth  || 1000;
+          var areaH = playerArea.offsetHeight || 600;
+          var maxW  = areaW - 40;
+          var maxH  = areaH - 80; // spazio per i controlli
+          var scale = Math.min(1, maxW / vpW, maxH / vpH);
+          var frameW = Math.round(vpW * scale);
+          var frameH = Math.round(vpH * scale);
+
+          // Outer container al size scalato, overflow hidden
+          var frameEl = document.createElement('div');
+          frameEl.className = 'replay-frame';
+          frameEl.style.width    = frameW + 'px';
+          frameEl.style.height   = frameH + 'px';
+          frameEl.style.overflow = 'hidden';
+          frameEl.style.position = 'relative';
+          frameEl.style.margin   = '0 auto';
+          container.appendChild(frameEl);
+
+          // Inner wrapper alla risoluzione originale, scalato via CSS
+          var innerEl = document.createElement('div');
+          innerEl.style.width           = vpW + 'px';
+          innerEl.style.height          = vpH + 'px';
+          innerEl.style.transform       = 'scale(' + scale + ')';
+          innerEl.style.transformOrigin = 'top left';
+          innerEl.style.position        = 'absolute';
+          innerEl.style.top             = '0';
+          innerEl.style.left            = '0';
+          frameEl.appendChild(innerEl);
+
+          // Controlli
+          var ctrlEl = document.createElement('div');
+          ctrlEl.className = 'replay-controls';
+          ctrlEl.innerHTML =
+            '<button class="player-btn" id="btn-toggle-play" onclick="togglePlayPause()" style="padding:6px 14px;font-size:12px;">' +
+              '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pausa' +
+            '</button>' +
+            '<div class="replay-progress" id="replay-progress" onclick="seekTo(event)" title="Clicca per saltare al punto">' +
+              '<div class="replay-progress-fill" id="replay-fill"></div>' +
+              '<div class="replay-progress-thumb" id="replay-thumb"></div>' +
+            '</div>' +
+            '<span class="replay-time" id="replay-time">0:00 / 0:00</span>' +
+            '<select class="replay-speed" onchange="changeSpeed(this)">' +
+              '<option value="0.5">0.5×</option>' +
+              '<option value="1" selected>1×</option>' +
+              '<option value="2">2×</option>' +
+              '<option value="4">4×</option>' +
+            '</select>';
+          container.appendChild(ctrlEl);
+
+          // Istanzia rrweb.Replayer
+          player = new rrweb.Replayer(events, {
+            root:      innerEl,
+            speed:     1,
+            mouseTail: true,
+          });
+
+          var meta = player.getMetaData();
+          replayState.duration = meta.totalTime;
+          replayState.playing  = true;
+          replayState.current  = 0;
+          updateProgressBar();
+
+          player.play();
+
+          // Aggiorna progress ogni 200ms
+          replayState.timer = setInterval(function () {
+            if (!player || !replayState.playing) return;
+            replayState.current = player.getCurrentTime ? player.getCurrentTime() : (replayState.current + 200);
+            updateProgressBar();
+            if (replayState.current >= replayState.duration) {
+              clearInterval(replayState.timer);
+              replayState.playing = false;
+              var tb = document.getElementById('btn-toggle-play');
+              if (tb) tb.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Replay';
+            }
+          }, 200);
+
+          player.on('finish', function () {
+            clearInterval(replayState.timer);
+            replayState.playing = false;
+            var tb = document.getElementById('btn-toggle-play');
+            if (tb) tb.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Replay';
+          });
+        }, 0); // fine setTimeout reflow
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+        alert('Errore nel caricamento degli eventi: ' + err.message);
+      });
+  };
+
+  // ── Elimina sessione ───────────────────────────────────────────────────────
+  window.deleteSession = function (e, id) {
+    e.stopPropagation();
+    if (!confirm('Eliminare questa sessione?')) return;
+    fetch(API + '/api/sessions/' + id, { method: 'DELETE' })
+      .then(function () {
+        if (currentSession && currentSession.id === id) {
+          currentSession = null;
+          document.getElementById('no-selection').style.display  = 'flex';
+          document.getElementById('player-toolbar').style.display = 'none';
+          document.getElementById('player-wrap').style.display    = 'none';
+          if (player) { try { player.pause(); } catch(e){} player = null; }
+          clearInterval(replayState.timer);
+          document.getElementById('rrweb-player-container').innerHTML = '';
+        }
+        loadSessions();
+      });
+  };
+
+  // ── Modal snippet ──────────────────────────────────────────────────────────
+  var snippetText = '';
+
+  window.openSnippetModal = function () {
+    var origin = window.location.origin;
+    var siteId = currentClient ? currentClient.siteId : 'mio-sito';
+    snippetText =
+      '<script>\n' +
+      '  window.SmartRecordingConfig = {\n' +
+      '    siteId:    \'' + siteId + '\',\n' +
+      '    serverUrl: \'' + origin + '\',\n' +
+      '  };\n' +
+      '<\/script>\n' +
+      '<script src="' + origin + '/tracker.js"><\/script>';
+    document.getElementById('snippet-code').textContent = snippetText;
+    document.getElementById('snippet-modal').classList.remove('hidden');
+  };
+
+  window.closeSnippetModal = function (e) {
+    if (!e || e.target === document.getElementById('snippet-modal')) {
+      document.getElementById('snippet-modal').classList.add('hidden');
+    }
+  };
+
+  window.copySnippet = function () {
+    navigator.clipboard.writeText(snippetText).then(function () {
+      var btn = document.querySelector('#snippet-modal .player-btn:last-child');
+      var orig = btn.innerHTML;
+      btn.innerHTML = '✓ Copiato!';
+      setTimeout(function () { btn.innerHTML = orig; }, 1500);
+    });
+  };
+
+  // ── Auto-refresh ogni 15s ──────────────────────────────────────────────────
+  setInterval(function () { loadSessions(); loadClients(); }, 15000);
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadClients();
+  loadSessions();
+
+})();
+</script>
+
+</body>
+</html>
