@@ -626,6 +626,94 @@
       justify-content: flex-end;
     }
 
+    /* ── Tab switcher sidebar ────────────────────────────────────────── */
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-tab {
+      flex: 1;
+      padding: 9px 0;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      color: var(--muted);
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+      transition: color .12s, border-color .12s;
+    }
+    .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Stats panel ─────────────────────────────────────────────────── */
+    .stats-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .stat-block { display: flex; flex-direction: column; gap: 8px; }
+    .stat-block-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--muted);
+    }
+    .stat-kpi-row { display: flex; gap: 8px; }
+    .stat-kpi {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .stat-kpi-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-kpi-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .bar-label { width: 72px; flex-shrink: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width .4s; }
+    .bar-count { width: 24px; text-align: right; color: var(--muted); flex-shrink: 0; }
+
+    .top-pages-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-pages-row:last-child { border-bottom: none; }
+    .top-pages-url { flex: 1; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-pages-count { color: var(--muted); flex-shrink: 0; }
+
+    .activity-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 40px;
+    }
+    .activity-bar {
+      flex: 1;
+      background: var(--accent);
+      border-radius: 2px 2px 0 0;
+      opacity: .7;
+      min-height: 2px;
+      transition: opacity .12s;
+    }
+    .activity-bar:hover { opacity: 1; }
+
     /* ── Scrollbar globale ────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -691,30 +779,50 @@
     </div>
   </nav>
 
-  <!-- Sidebar sessioni -->
+  <!-- Sidebar sessioni / statistiche -->
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">
-        <span id="sessions-sidebar-title">Sessioni</span>
-        <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="loadSessions()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    <!-- Tab switcher -->
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" id="tab-sessions" onclick="switchTab('sessions')">
+        Sessioni
+      </button>
+      <button class="sidebar-tab" id="tab-stats" onclick="switchTab('stats')">
+        Statistiche
+      </button>
+    </div>
+
+    <!-- Sessioni -->
+    <div id="pane-sessions" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <span id="sessions-sidebar-title">Sessioni</span>
+          <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="loadSessions()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Aggiorna
+          </button>
+        </div>
+        <div class="sidebar-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          Aggiorna
-        </button>
+          <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
+        </div>
       </div>
-      <div class="sidebar-search">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
+      <div class="filter-chips" id="filter-chips"></div>
+      <div class="sessions-list" id="sessions-list">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <span>Caricamento…</span>
+        </div>
       </div>
     </div>
-    <div class="filter-chips" id="filter-chips"></div>
-    <div class="sessions-list" id="sessions-list">
-      <div class="empty-state">
-        <div class="spinner"></div>
-        <span>Caricamento…</span>
+
+    <!-- Statistiche -->
+    <div id="pane-stats" style="display:none;flex:1;overflow:hidden;">
+      <div class="stats-panel" id="stats-panel">
+        <div class="empty-state"><div class="spinner"></div></div>
       </div>
     </div>
   </aside>
@@ -1364,6 +1472,144 @@
       setTimeout(function () { btn.innerHTML = orig; }, 1500);
     });
   };
+
+  // ── Tab switch ─────────────────────────────────────────────────────────────
+  window.switchTab = function (tab) {
+    document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
+    document.getElementById('tab-stats').classList.toggle('active', tab === 'stats');
+    document.getElementById('pane-sessions').style.display = tab === 'sessions' ? 'flex' : 'none';
+    document.getElementById('pane-stats').style.display    = tab === 'stats'    ? 'flex' : 'none';
+    if (tab === 'stats') renderStats();
+  };
+
+  // ── Statistiche ────────────────────────────────────────────────────────────
+  function renderStats() {
+    // Fetch tutte le sessioni (non filtrate per cliente) per le stats globali del cliente selezionato
+    var url = API + '/api/sessions';
+    if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
+    fetch(url).then(function (r) { return r.json(); }).then(function (all) {
+      var panel = document.getElementById('stats-panel');
+      if (!all.length) {
+        panel.innerHTML = '<div class="empty-state"><span>Nessuna sessione da analizzare.</span></div>';
+        return;
+      }
+
+      // Calcoli
+      var today     = new Date().toDateString();
+      var week      = Date.now() - 7 * 86400000;
+      var todayCnt  = all.filter(function (s) { return new Date(s.startTime).toDateString() === today; }).length;
+      var weekCnt   = all.filter(function (s) { return s.startTime > week; }).length;
+      var completed = all.filter(function (s) { return s.duration; });
+      var avgDur    = completed.length ? Math.round(completed.reduce(function (a, s) { return a + s.duration; }, 0) / completed.length / 1000) : 0;
+      var totalEvts = all.reduce(function (a, s) { return a + (s.eventsCount || 0); }, 0);
+
+      // Raggruppamenti
+      function groupBy(key, fn) {
+        var m = {};
+        all.forEach(function (s) { var v = fn ? fn(s) : (s[key] || 'Unknown'); m[v] = (m[v] || 0) + 1; });
+        return Object.entries(m).sort(function (a, b) { return b[1] - a[1]; });
+      }
+      var devices  = groupBy('deviceType');
+      var browsers = groupBy('browser', function (s) { return fmtBrowser(s.userAgent); });
+      var oses     = groupBy('os');
+      var langs    = groupBy('language', function (s) { return (s.language || '').split('-')[0] || 'n/d'; });
+
+      // Top 5 pagine
+      var pages = {};
+      all.forEach(function (s) {
+        try { var k = new URL(s.url).pathname; pages[k] = (pages[k] || 0) + 1; }
+        catch (e) { pages[s.url] = (pages[s.url] || 0) + 1; }
+      });
+      var topPages = Object.entries(pages).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+
+      // Attività per ora (0-23)
+      var hours = new Array(24).fill(0);
+      all.forEach(function (s) { hours[new Date(s.startTime).getHours()]++; });
+      var maxH = Math.max.apply(null, hours) || 1;
+
+      // Device colors
+      var DCOLS = { desktop: '#5b6af0', mobile: '#f06b5b', tablet: '#4caf7d' };
+      var BCOLS = ['#5b6af0','#f06b5b','#4caf7d','#f0a830','#a855f7','#06b6d4'];
+
+      function barRows(groups, colors) {
+        var max = groups[0] ? groups[0][1] : 1;
+        return groups.slice(0, 6).map(function (g, i) {
+          var pct = Math.round(g[1] / max * 100);
+          var col = colors[g[0]] || colors[i] || '#5b6af0';
+          return '<div class="bar-row">' +
+            '<span class="bar-label" title="' + g[0] + '">' + g[0] + '</span>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+            '<span class="bar-count">' + g[1] + '</span>' +
+          '</div>';
+        }).join('');
+      }
+
+      panel.innerHTML =
+        // KPI
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Panoramica</div>' +
+          '<div class="stat-kpi-row">' +
+            '<div class="stat-kpi"><div class="stat-kpi-value">' + all.length + '</div><div class="stat-kpi-label">Totale sessioni</div></div>' +
+            '<div class="stat-kpi"><div class="stat-kpi-value">' + todayCnt + '</div><div class="stat-kpi-label">Oggi</div></div>' +
+          '</div>' +
+          '<div class="stat-kpi-row">' +
+            '<div class="stat-kpi"><div class="stat-kpi-value">' + weekCnt + '</div><div class="stat-kpi-label">Ultimi 7 giorni</div></div>' +
+            '<div class="stat-kpi"><div class="stat-kpi-value">' + avgDur + 's</div><div class="stat-kpi-label">Durata media</div></div>' +
+          '</div>' +
+          '<div class="stat-kpi-row">' +
+            '<div class="stat-kpi" style="flex:1"><div class="stat-kpi-value">' + totalEvts.toLocaleString() + '</div><div class="stat-kpi-label">Tot. eventi</div></div>' +
+          '</div>' +
+        '</div>' +
+
+        // Attività oraria
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Attività per ora del giorno</div>' +
+          '<div class="activity-chart">' +
+            hours.map(function (h, i) {
+              var pct = Math.round(h / maxH * 100);
+              return '<div class="activity-bar" style="height:' + Math.max(pct, 2) + '%" title="' + i + ':00 — ' + h + ' sessioni"></div>';
+            }).join('') +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px;"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>' +
+        '</div>' +
+
+        // Device
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Dispositivi</div>' +
+          barRows(devices, DCOLS) +
+        '</div>' +
+
+        // Browser
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Browser</div>' +
+          barRows(browsers, BCOLS) +
+        '</div>' +
+
+        // OS
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Sistema operativo</div>' +
+          barRows(oses, BCOLS) +
+        '</div>' +
+
+        // Lingue
+        (langs.length > 1 ?
+          '<div class="stat-block">' +
+            '<div class="stat-block-title">Lingue</div>' +
+            barRows(langs, BCOLS) +
+          '</div>' : '') +
+
+        // Top pages
+        '<div class="stat-block">' +
+          '<div class="stat-block-title">Pagine più visitate</div>' +
+          topPages.map(function (p) {
+            return '<div class="top-pages-row">' +
+              '<span class="top-pages-url" title="' + p[0] + '">' + p[0] + '</span>' +
+              '<span class="top-pages-count">' + p[1] + '</span>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+    });
+  }
 
   // ── Auto-refresh ogni 15s ──────────────────────────────────────────────────
   setInterval(function () { loadSessions(); loadClients(); }, 15000);
