@@ -13,17 +13,20 @@
  *
  * Storage: flat file JSON in DATA_DIR
  * Avvia: node server.js
- * Env:   PORT (default 4000), DATA_DIR (default ./data)
+ * Env:   PORT (default 4000), DATA_DIR (default ./data), SESSION_TTL_DAYS (default 30)
  */
 
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
+const http   = require('http');
+const fs     = require('fs');
+const path   = require('path');
+const zlib   = require('zlib');
 const { URL } = require('url');
 
-const PORT     = process.env.PORT || 4000;
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const PUB_DIR  = path.join(__dirname, 'public');
+const PORT         = process.env.PORT || 4000;
+const DATA_DIR     = process.env.DATA_DIR || path.join(__dirname, 'data');
+const PUB_DIR      = path.join(__dirname, 'public');
+const TTL_DAYS     = parseInt(process.env.SESSION_TTL_DAYS || '30', 10);
+const TTL_MS       = TTL_DAYS * 24 * 60 * 60 * 1000;
 
 // ─── Cartelle dati ─────────────────────────────────────────────────────────
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -47,24 +50,60 @@ function writeSessions(sessions) {
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
 }
 
+function eventsFilePath(sessionId) {
+  const gz   = path.join(EVENTS_DIR, `${sessionId}.json.gz`);
+  const json = path.join(EVENTS_DIR, `${sessionId}.json`);
+  // Preferisce .gz se esiste, altrimenti legacy .json
+  if (fs.existsSync(gz))   return { file: gz,   compressed: true  };
+  if (fs.existsSync(json)) return { file: json,  compressed: false };
+  return { file: gz, compressed: true }; // default per nuovi file
+}
+
 function readEvents(sessionId) {
-  const file = path.join(EVENTS_DIR, `${sessionId}.json`);
+  const { file, compressed } = eventsFilePath(sessionId);
   if (!fs.existsSync(file)) return [];
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch { return []; }
+  try {
+    const raw = fs.readFileSync(file);
+    const txt = compressed ? zlib.gunzipSync(raw).toString('utf8') : raw.toString('utf8');
+    return JSON.parse(txt);
+  } catch { return []; }
 }
 
 function appendEvents(sessionId, newEvents) {
-  const file     = path.join(EVENTS_DIR, `${sessionId}.json`);
   const existing = readEvents(sessionId);
   const merged   = existing.concat(newEvents);
-  fs.writeFileSync(file, JSON.stringify(merged), 'utf8');
+  const gz       = path.join(EVENTS_DIR, `${sessionId}.json.gz`);
+  // Migra legacy .json → .gz se esiste
+  const legacyJson = path.join(EVENTS_DIR, `${sessionId}.json`);
+  if (fs.existsSync(legacyJson)) fs.unlinkSync(legacyJson);
+  fs.writeFileSync(gz, zlib.gzipSync(JSON.stringify(merged)));
   return merged.length;
 }
 
 function deleteEventFile(sessionId) {
-  const file = path.join(EVENTS_DIR, `${sessionId}.json`);
-  if (fs.existsSync(file)) fs.unlinkSync(file);
+  const gz   = path.join(EVENTS_DIR, `${sessionId}.json.gz`);
+  const json = path.join(EVENTS_DIR, `${sessionId}.json`);
+  if (fs.existsSync(gz))   fs.unlinkSync(gz);
+  if (fs.existsSync(json)) fs.unlinkSync(json);
+}
+
+// ─── TTL cleanup ─────────────────────────────────────────────────────────────
+function cleanupExpiredSessions() {
+  const sessions = readSessions();
+  const cutoff   = Date.now() - TTL_MS;
+  const expired  = sessions.filter(s => s.startTime < cutoff);
+  if (!expired.length) return;
+
+  expired.forEach(s => deleteEventFile(s.id));
+  const remaining = sessions.filter(s => s.startTime >= cutoff);
+  writeSessions(remaining);
+  console.log(`[TTL] Eliminate ${expired.length} sessioni più vecchie di ${TTL_DAYS} giorni.`);
+}
+
+// Esegui all'avvio e poi ogni 24 ore
+function scheduleTTL() {
+  cleanupExpiredSessions();
+  setInterval(cleanupExpiredSessions, 24 * 60 * 60 * 1000);
 }
 
 function readClients() {
@@ -325,6 +364,7 @@ async function router(req, res) {
 
 // ─── Avvio ───────────────────────────────────────────────────────────────────
 initStorage();
+scheduleTTL();
 
 const server = http.createServer(async (req, res) => {
   try {
