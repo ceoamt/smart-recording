@@ -249,10 +249,15 @@ async function router(req, res) {
     return;
   }
 
-  // ── Redirect da /login → / se già autenticato ─────────────────────────────
-  if (method === 'GET' && pathname === '/login' && isAuthenticated(req)) {
-    res.writeHead(302, { 'Location': '/' });
-    res.end();
+  // ── GET /login → serve login.html ────────────────────────────────────────
+  if (method === 'GET' && pathname === '/login') {
+    if (isAuthenticated(req)) {
+      res.writeHead(302, { 'Location': '/' });
+      res.end();
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      fs.createReadStream(path.join(PUB_DIR, 'login.html')).pipe(res);
+    }
     return;
   }
 
