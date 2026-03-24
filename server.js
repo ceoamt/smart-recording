@@ -53,6 +53,12 @@ function isAuthenticated(req) {
   return !!(token && SESSIONS_AUTH.has(token));
 }
 
+// SameSite=None;Secure per iframe cross-origin (HTTPS), Lax per locale (HTTP)
+function cookieFlags(req) {
+  const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
+  return isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
+}
+
 // Route pubbliche (tracker + login) — non richiedono autenticazione
 function isPublicRoute(method, pathname) {
   if (method === 'OPTIONS')              return true;
@@ -221,7 +227,7 @@ async function router(req, res) {
     if (body.username === AUTH_USER && body.password === AUTH_PASS) {
       const token = generateToken();
       SESSIONS_AUTH.set(token, { createdAt: Date.now() });
-      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax`);
+      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; ${cookieFlags(req)}`);
       json(res, 200, { ok: true });
     } else {
       json(res, 401, { ok: false, error: 'Credenziali non valide' });
@@ -233,7 +239,7 @@ async function router(req, res) {
   if (method === 'POST' && pathname === '/api/logout') {
     const token = parseCookies(req)[COOKIE_NAME];
     if (token) SESSIONS_AUTH.delete(token);
-    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; ${cookieFlags(req)}; Max-Age=0`);
     json(res, 200, { ok: true });
     return;
   }

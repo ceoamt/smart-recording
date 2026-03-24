@@ -222,7 +222,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password }),
-          credentials: 'same-origin',
+          credentials: 'include',
         });
         const data = await res.json();
         if (data.ok) {

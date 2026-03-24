@@ -1166,6 +1166,14 @@
   'use strict';
 
   var API            = '';
+
+  // Wrapper fetch che aggiunge credentials:include per tutte le chiamate API
+  // (necessario per cookie cross-site quando l'app è in iframe)
+  function apiFetch(url, opts) {
+    opts = Object.assign({ credentials: 'include' }, opts || {});
+    return fetch(url, opts);
+  }
+
   var sessions       = [];
   var clients        = [];
   var currentSession = null;
@@ -1217,14 +1225,14 @@
 
   // ── Logout ──────────────────────────────────────────────────────────────────
   function doLogout() {
-    fetch('/api/logout', { method: 'POST', credentials: 'same-origin' })
+    apiFetch('/api/logout', { method: 'POST' })
       .finally(() => { window.location.href = '/login'; });
   }
   window.doLogout = doLogout;
 
   // ── Carica clienti ─────────────────────────────────────────────────────────
   window.loadClients = function loadClients() {
-    fetch(API + '/api/clients')
+    apiFetch(API + '/api/clients')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         clients = data;
@@ -1296,7 +1304,7 @@
     function confirm() {
       var newName = input.value.trim();
       if (!newName || newName === client.name) { renderClients(); return; }
-      fetch(API + '/api/clients/' + id, {
+      apiFetch(API + '/api/clients/' + id, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName }),
@@ -1311,7 +1319,7 @@
 
   window.deleteClient = function (id, name) {
     if (!confirm('Eliminare il cliente "' + name + '"?\nLe sessioni registrate non verranno cancellate.')) return;
-    fetch(API + '/api/clients/' + id, { method: 'DELETE' })
+    apiFetch(API + '/api/clients/' + id, { method: 'DELETE' })
       .then(function () {
         if (currentClient && currentClient.id === id) selectClient(null);
         else loadClients();
@@ -1362,7 +1370,7 @@
 
   window.saveClientSettings = function () {
     if (!settingsClientId) return;
-    fetch(API + '/api/clients/' + settingsClientId, {
+    apiFetch(API + '/api/clients/' + settingsClientId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ maxSessions: settingsMaxSessions, ttlDays: settingsTtl }),
@@ -1403,7 +1411,7 @@
     var name   = document.getElementById('client-name-input').value.trim();
     var siteId = document.getElementById('client-siteid-input').value.trim();
     if (!name || !siteId) { alert('Compila nome e siteId.'); return; }
-    fetch(API + '/api/clients', {
+    apiFetch(API + '/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name, siteId: siteId }),
@@ -1422,7 +1430,7 @@
   window.loadSessions = function () {
     var url = API + '/api/sessions';
     if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
-    fetch(url)
+    apiFetch(url)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         sessions = data;
@@ -1439,7 +1447,7 @@
 
   function updateStats() {
     // Stats sempre su tutte le sessioni
-    fetch(API + '/api/sessions')
+    apiFetch(API + '/api/sessions')
       .then(function (r) { return r.json(); })
       .then(function (all) {
         document.getElementById('stat-total').textContent = all.length;
@@ -1673,7 +1681,7 @@
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;"></div> Caricamento…';
 
-    fetch(API + '/api/sessions/' + currentSession.id + '/events')
+    apiFetch(API + '/api/sessions/' + currentSession.id + '/events')
       .then(function (r) { return r.json(); })
       .then(function (events) {
         btn.disabled = false;
@@ -1824,7 +1832,7 @@
       // Seconda conferma: elimina
       clearTimeout(deleteTimers[id]);
       delete deleteTimers[id];
-      fetch(API + '/api/sessions/' + id, { method: 'DELETE' })
+      apiFetch(API + '/api/sessions/' + id, { method: 'DELETE' })
         .then(function () {
           if (currentSession && currentSession.id === id) {
             currentSession = null;
@@ -1862,7 +1870,7 @@
     var newVal = !s.starred;
     s.starred = newVal;
     if (currentSession && currentSession.id === id) currentSession.starred = newVal;
-    fetch(API + '/api/sessions/' + id, {
+    apiFetch(API + '/api/sessions/' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ starred: newVal }),
@@ -1886,7 +1894,7 @@
       if (btn) btn.classList.toggle('active', tags.indexOf(t) !== -1);
     });
     // Patch server
-    fetch(API + '/api/sessions/' + currentSession.id, {
+    apiFetch(API + '/api/sessions/' + currentSession.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags: tags }),
@@ -1900,7 +1908,7 @@
     currentSession.note = note;
     var s = sessions.find(function (x) { return x.id === currentSession.id; });
     if (s) s.note = note;
-    fetch(API + '/api/sessions/' + currentSession.id, {
+    apiFetch(API + '/api/sessions/' + currentSession.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note: note }),
@@ -1981,7 +1989,7 @@
     // Fetch tutte le sessioni (non filtrate per cliente) per le stats globali del cliente selezionato
     var url = API + '/api/sessions';
     if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
-    fetch(url).then(function (r) { return r.json(); }).then(function (all) {
+    apiFetch(url).then(function (r) { return r.json(); }).then(function (all) {
       var panel = document.getElementById('stats-panel');
       if (!all.length) {
         panel.innerHTML = '<div class="empty-state"><span>Nessuna sessione da analizzare.</span></div>';
@@ -2123,7 +2131,7 @@
 
   loadClients();
   // Prima carica tutte le sessioni, poi eventualmente auto-seleziona
-  fetch(API + '/api/sessions')
+  apiFetch(API + '/api/sessions')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       sessions = data;
