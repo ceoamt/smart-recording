@@ -30,10 +30,37 @@ const TTL_DAYS     = parseInt(process.env.SESSION_TTL_DAYS || '30', 10);
 const TTL_MS       = TTL_DAYS * 24 * 60 * 60 * 1000;
 
 // ─── Autenticazione ──────────────────────────────────────────────────────────
-const AUTH_USER  = process.env.AUTH_USER || 'amtitalia';
-const AUTH_PASS  = process.env.AUTH_PASS || 'smartrec2026?!?!';
+const AUTH_USER   = process.env.AUTH_USER || 'amtitalia';
+const AUTH_PASS   = process.env.AUTH_PASS || 'smartrec2026?!?!';
 const COOKIE_NAME = 'sr_session';
-const SESSIONS_AUTH = new Map(); // token → { createdAt }
+const AUTH_FILE   = path.join(DATA_DIR, 'auth_tokens.json');
+const TOKEN_TTL   = 90 * 24 * 60 * 60 * 1000; // 90 giorni
+
+// Carica tokens da disco (persistono tra i redeploy)
+function loadAuthTokens() {
+  try {
+    if (fs.existsSync(AUTH_FILE)) {
+      const data = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8'));
+      const now = Date.now();
+      const map = new Map();
+      Object.entries(data).forEach(([token, info]) => {
+        if (now - info.createdAt < TOKEN_TTL) map.set(token, info); // scarta i token scaduti
+      });
+      return map;
+    }
+  } catch {}
+  return new Map();
+}
+
+function saveAuthTokens(map) {
+  try {
+    const obj = {};
+    map.forEach((v, k) => { obj[k] = v; });
+    fs.writeFileSync(AUTH_FILE, JSON.stringify(obj), 'utf8');
+  } catch {}
+}
+
+const SESSIONS_AUTH = loadAuthTokens();
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -231,6 +258,7 @@ async function router(req, res) {
     if (body.username === AUTH_USER && body.password === AUTH_PASS) {
       const token = generateToken();
       SESSIONS_AUTH.set(token, { createdAt: Date.now() });
+      saveAuthTokens(SESSIONS_AUTH); // persisti su disco
       // Mantengo anche il cookie per compatibilità accesso diretto
       const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
       const cookieFlags = isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
@@ -245,7 +273,7 @@ async function router(req, res) {
   // ── POST /api/logout ──────────────────────────────────────────────────────
   if (method === 'POST' && pathname === '/api/logout') {
     const token = parseCookies(req)[COOKIE_NAME];
-    if (token) SESSIONS_AUTH.delete(token);
+    if (token) { SESSIONS_AUTH.delete(token); saveAuthTokens(SESSIONS_AUTH); }
     res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; ${cookieFlags(req)}; Max-Age=0`);
     json(res, 200, { ok: true });
     return;
