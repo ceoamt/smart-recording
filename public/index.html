@@ -1443,6 +1443,7 @@
   };
 
   // ── Carica sessioni ─────────────────────────────────────────────────────────
+  var _sessionsInitDone = false;
   window.loadSessions = function () {
     var url = API + '/api/sessions';
     if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
@@ -1454,6 +1455,14 @@
         applyFilters();
         updateStats();
         renderClients();
+        // Prima chiamata: auto-seleziona sessione da link condiviso (?session=ID)
+        if (!_sessionsInitDone) {
+          _sessionsInitDone = true;
+          if (sharedSessionId) {
+            var target = sessions.find(function (s) { return s.id === sharedSessionId; });
+            if (target) setTimeout(function () { playSession(sharedSessionId); }, 300);
+          }
+        }
       })
       .catch(function () {
         document.getElementById('sessions-list').innerHTML =
@@ -1462,17 +1471,14 @@
   };
 
   function updateStats() {
-    // Stats sempre su tutte le sessioni
-    apiFetch(API + '/api/sessions')
-      .then(function (r) { return r.json(); })
-      .then(function (all) {
-        document.getElementById('stat-total').textContent = all.length;
-        var today = new Date().toDateString();
-        var todayCount = all.filter(function (s) {
-          return new Date(s.startTime).toDateString() === today;
-        }).length;
-        document.getElementById('stat-today').textContent = todayCount;
-      });
+    // Usa il sessions array già in memoria — no fetch extra
+    var all = sessions;
+    document.getElementById('stat-total').textContent = all.length;
+    var today = new Date().toDateString();
+    var todayCount = all.filter(function (s) {
+      return new Date(s.startTime).toDateString() === today;
+    }).length;
+    document.getElementById('stat-today').textContent = todayCount;
   }
 
   // ── Render lista (table view) ──────────────────────────────────────────────
@@ -2145,26 +2151,9 @@
   // Controlla se c'è un ?session=ID nell'URL (link condiviso)
   var sharedSessionId = new URLSearchParams(window.location.search).get('session');
 
+  // Una sola chiamata: loadClients → poi loadSessions (via auto-refresh e init)
   loadClients();
-  // Prima carica tutte le sessioni, poi eventualmente auto-seleziona
-  apiFetch(API + '/api/sessions')
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      sessions = data;
-      renderFilterChips();
-      applyFilters();
-      updateStats();
-      renderClients();
-      // Auto-seleziona sessione da URL condiviso
-      if (sharedSessionId) {
-        var target = sessions.find(function (s) { return s.id === sharedSessionId; });
-        if (target) setTimeout(function () { playSession(sharedSessionId); }, 300);
-      }
-    })
-    .catch(function () {
-      document.getElementById('sessions-list').innerHTML =
-        '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Impossibile contattare il server.<br/>Verifica che sia avviato.</span></div>';
-    });
+  loadSessions();
 
 })();
 </script>
