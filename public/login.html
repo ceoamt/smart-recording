@@ -192,6 +192,11 @@
   </div>
 
   <script>
+    // Se già loggato (token in localStorage) → vai alla dashboard
+    if (localStorage.getItem('sr_token')) {
+      window.location.replace('/');
+    }
+
     const form      = document.getElementById('login-form');
     const errMsg    = document.getElementById('error-msg');
     const submitBtn = document.getElementById('submit-btn');
@@ -226,7 +231,9 @@
         });
         const data = await res.json();
         if (data.ok) {
-          window.location.href = '/';
+          // Salva token in localStorage — funziona anche in iframe cross-origin
+          localStorage.setItem('sr_token', data.token);
+          window.location.replace('/');
         } else {
           errMsg.classList.add('show');
           submitBtn.disabled = false;

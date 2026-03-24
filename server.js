@@ -49,19 +49,23 @@ function parseCookies(req) {
 }
 
 function isAuthenticated(req) {
-  const token = parseCookies(req)[COOKIE_NAME];
-  return !!(token && SESSIONS_AUTH.has(token));
+  // 1. Cookie (fallback per accesso diretto da browser)
+  const cookieToken = parseCookies(req)[COOKIE_NAME];
+  if (cookieToken && SESSIONS_AUTH.has(cookieToken)) return true;
+  // 2. Authorization: Bearer TOKEN (usato da iframe / localStorage flow)
+  const auth = req.headers['authorization'] || '';
+  if (auth.startsWith('Bearer ')) {
+    const bearerToken = auth.slice(7).trim();
+    if (bearerToken && SESSIONS_AUTH.has(bearerToken)) return true;
+  }
+  return false;
 }
 
-// SameSite=None;Secure per iframe cross-origin (HTTPS), Lax per locale (HTTP)
-function cookieFlags(req) {
-  const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
-  return isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
-}
-
-// Route pubbliche (tracker + login) — non richiedono autenticazione
+// Route pubbliche (tracker + login + pagine HTML) — non richiedono autenticazione
+// L'auth delle pagine HTML è gestita lato client con localStorage
 function isPublicRoute(method, pathname) {
   if (method === 'OPTIONS')              return true;
+  if (pathname === '/')                  return true;   // auth client-side
   if (pathname === '/login')             return true;
   if (pathname === '/api/login')         return true;
   if (pathname === '/api/logout')        return true;
@@ -227,8 +231,11 @@ async function router(req, res) {
     if (body.username === AUTH_USER && body.password === AUTH_PASS) {
       const token = generateToken();
       SESSIONS_AUTH.set(token, { createdAt: Date.now() });
-      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; ${cookieFlags(req)}`);
-      json(res, 200, { ok: true });
+      // Mantengo anche il cookie per compatibilità accesso diretto
+      const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
+      const cookieFlags = isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
+      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; ${cookieFlags}`);
+      json(res, 200, { ok: true, token }); // token restituito per localStorage (iframe)
     } else {
       json(res, 401, { ok: false, error: 'Credenziali non valide' });
     }
@@ -244,26 +251,18 @@ async function router(req, res) {
     return;
   }
 
-  // ── Auth guard ────────────────────────────────────────────────────────────
+  // ── Auth guard — solo per chiamate API, non per pagine HTML ──────────────
+  // Le pagine HTML (index.html, login.html) sono pubbliche:
+  // l'auth è gestita client-side con localStorage + Bearer token
   if (!isPublicRoute(method, pathname) && !isAuthenticated(req)) {
-    if (method === 'GET' && !pathname.startsWith('/api/')) {
-      res.writeHead(302, { 'Location': '/login' });
-      res.end();
-    } else {
-      json(res, 401, { error: 'unauthorized' });
-    }
+    json(res, 401, { error: 'unauthorized' });
     return;
   }
 
   // ── GET /login → serve login.html ────────────────────────────────────────
   if (method === 'GET' && pathname === '/login') {
-    if (isAuthenticated(req)) {
-      res.writeHead(302, { 'Location': '/' });
-      res.end();
-    } else {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      fs.createReadStream(path.join(PUB_DIR, 'login.html')).pipe(res);
-    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    fs.createReadStream(path.join(PUB_DIR, 'login.html')).pipe(res);
     return;
   }
 

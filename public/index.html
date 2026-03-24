@@ -1167,11 +1167,26 @@
 
   var API            = '';
 
-  // Wrapper fetch che aggiunge credentials:include per tutte le chiamate API
-  // (necessario per cookie cross-site quando l'app è in iframe)
+  // ── Auth: localStorage token (funziona in iframe cross-origin) ─────────────
+  var srToken = localStorage.getItem('sr_token');
+  if (!srToken) {
+    window.location.replace('/login');
+    return; // interrompe esecuzione dello script
+  }
+
+  // Wrapper fetch: aggiunge Authorization Bearer + credentials:include
   function apiFetch(url, opts) {
-    opts = Object.assign({ credentials: 'include' }, opts || {});
-    return fetch(url, opts);
+    opts = opts || {};
+    opts.credentials = 'include';
+    opts.headers = Object.assign({ 'Authorization': 'Bearer ' + srToken }, opts.headers || {});
+    return fetch(url, opts).then(function (r) {
+      // Token scaduto o invalidato → forza login
+      if (r.status === 401) {
+        localStorage.removeItem('sr_token');
+        window.location.replace('/login');
+      }
+      return r;
+    });
   }
 
   var sessions       = [];
@@ -1225,8 +1240,9 @@
 
   // ── Logout ──────────────────────────────────────────────────────────────────
   function doLogout() {
+    localStorage.removeItem('sr_token');
     apiFetch('/api/logout', { method: 'POST' })
-      .finally(() => { window.location.href = '/login'; });
+      .finally(function () { window.location.replace('/login'); });
   }
   window.doLogout = doLogout;
 
