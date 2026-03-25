@@ -1180,10 +1180,11 @@
     opts.credentials = 'include';
     opts.headers = Object.assign({ 'Authorization': 'Bearer ' + srToken }, opts.headers || {});
     return fetch(url, opts).then(function (r) {
-      // Token scaduto o invalidato → forza login
+      // Token scaduto o invalidato → forza login e interrompe la catena
       if (r.status === 401) {
         localStorage.removeItem('sr_token');
         window.location.replace('/login');
+        throw new Error('unauthorized'); // interrompe .then() successivi
       }
       return r;
     });
