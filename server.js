@@ -464,6 +464,13 @@ async function router(req, res) {
     sessions[idx].relevanceScore = rel.relevanceScore;
     sessions[idx].relevance      = rel.relevance;
 
+    // Tag automatici basati sui segnali comportamentali
+    const autoTags = new Set(sessions[idx].tags || []);
+    if (sessions[idx].rageClicks    > 0) autoTags.add('😡 Frustration');
+    if (sessions[idx].consoleErrors > 0) autoTags.add('🐞 Bug');
+    if (sessions[idx].uturns        > 0) autoTags.add('😕 Confusion');
+    sessions[idx].tags = Array.from(autoTags);
+
     writeSessions(sessions);
     json(res, 200, { ok: true });
     return;
