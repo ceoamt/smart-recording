@@ -636,6 +636,11 @@ async function router(req, res) {
 initStorage();
 scheduleTTL();
 
+// Log diagnostico: verifica volume montato correttamente
+console.log('[startup] DATA_DIR =', DATA_DIR);
+console.log('[startup] clients.json =', fs.existsSync(CLIENTS_FILE) ? fs.readFileSync(CLIENTS_FILE, 'utf8').slice(0, 200) : 'NOT FOUND');
+console.log('[startup] sessions count =', (function(){ try { return JSON.parse(fs.readFileSync(SESSIONS_FILE,'utf8')).length; } catch(e){ return 'ERROR: '+e.message; } })());
+
 const server = http.createServer(async (req, res) => {
   try {
     await router(req, res);
