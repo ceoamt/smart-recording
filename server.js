@@ -569,9 +569,10 @@ async function router(req, res) {
     const sessions = readSessions();
     const idx      = sessions.findIndex(s => s.id === id);
     if (idx === -1) { json(res, 404, { error: 'not found' }); return; }
-    if (body.tags    !== undefined) sessions[idx].tags    = body.tags;
-    if (body.starred !== undefined) sessions[idx].starred = body.starred;
-    if (body.note    !== undefined) sessions[idx].note    = body.note;
+    if (body.tags       !== undefined) sessions[idx].tags       = body.tags;
+    if (body.tagMarkers !== undefined) sessions[idx].tagMarkers = body.tagMarkers;
+    if (body.starred    !== undefined) sessions[idx].starred    = body.starred;
+    if (body.note       !== undefined) sessions[idx].note       = body.note;
     writeSessions(sessions);
     json(res, 200, sessions[idx]);
     return;

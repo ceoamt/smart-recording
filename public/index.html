@@ -1673,6 +1673,7 @@
   function applyFilters() {
     var q        = (document.getElementById('search-input').value || '').toLowerCase();
     var filtered = sessions.filter(function (s) {
+      if (s.status === 'recording') return false;  // nasconde sessioni LIVE ancora attive
       if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
       if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
       if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
@@ -1741,7 +1742,8 @@
   };
 
   // ── Avvia replay ───────────────────────────────────────────────────────────
-  var replayState = { playing: false, duration: 0, current: 0, timer: null };
+  var replayState   = { playing: false, duration: 0, current: 0, timer: null };
+  var sessionMarkers = [];  // markers della sessione in replay (accessibile da quickTag)
 
   function fmtTime(ms) {
     var s = Math.floor((ms || 0) / 1000);
@@ -1758,16 +1760,35 @@
     click:         '#06b6d4',  // ciano — click utente
     scroll:        '#4caf7d',  // verde — scroll
     input:         '#f0a830',  // giallo — digitazione
+    // Tag applicati manualmente
+    'tag_🐞 Bug':          '#e05252',
+    'tag_⚠️ UI/UX':        '#f0a830',
+    'tag_😕 Confusion':    '#a855f7',
+    'tag_😡 Frustration':  '#e05252',
+    'tag_🎉 Success':      '#4caf7d',
+    'tag_🏆 Conversion':   '#5b6af0',
   };
 
   function renderReplayMarkers(markers, duration) {
     var wrap = document.getElementById('replay-markers');
     if (!wrap || !duration) return;
     wrap.innerHTML = '';
-    markers.forEach(function (m) {
+
+    // Includi anche i tag applicati manualmente (con timestamp se disponibile)
+    var allMarkers = markers.slice();
+    if (currentSession && currentSession.tagMarkers) {
+      currentSession.tagMarkers.forEach(function (tm) {
+        allMarkers.push({ type: 'tag_' + tm.tag, t: tm.t, tag: tm.tag });
+      });
+    }
+
+    allMarkers.forEach(function (m) {
       if (m.t === undefined) return;
       var pct   = Math.min(99, (m.t / duration) * 100);
       var color = MARKER_COLORS[m.type] || '#7a7f9a';
+      var isTag    = m.type && m.type.indexOf('tag_') === 0;
+      var isClick  = m.type === 'click';
+      var isSmall  = (m.type === 'scroll' || m.type === 'input');
       var label = m.type === 'rage_click'    ? '😠 Rage click' :
                   m.type === 'console_error' ? '⚠ Errore JS: ' + (m.msg || '') :
                   m.type === 'uturn'         ? '↩ U-turn → ' + (m.to || '') :
@@ -1775,14 +1796,19 @@
                   m.type === 'click'         ? '👆 Click' :
                   m.type === 'scroll'        ? '↕ Scroll' :
                   m.type === 'input'         ? '⌨ Input' :
+                  isTag                      ? m.tag :
                   m.type.replace('custom_','') + ': ' + JSON.stringify(m);
+      var sz = isTag ? '10px' : isSmall ? '6px' : isClick ? '8px' : '9px';
+      var h  = isTag ? '14px' : sz;
       var dot = document.createElement('div');
       dot.title = label;
-      var isSmall = (m.type === 'click' || m.type === 'scroll' || m.type === 'input');
-      var sz = isSmall ? '5px' : '8px';
       dot.style.cssText = 'position:absolute;top:50%;left:' + pct + '%;transform:translate(-50%,-50%);' +
-        'width:' + sz + ';height:' + sz + ';border-radius:50%;background:' + color + ';cursor:pointer;z-index:2;' +
-        'border:1px solid rgba(255,255,255,.3);opacity:' + (isSmall ? '.7' : '1') + ';';
+        'width:' + sz + ';height:' + h + ';border-radius:' + (isTag ? '3px' : '50%') + ';background:' + color + ';cursor:pointer;z-index:' + (isTag ? '3' : '2') + ';' +
+        'border:1px solid rgba(255,255,255,.4);opacity:' + (isSmall ? '.65' : '1') + ';';
+      if (isTag) {
+        dot.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:8px;line-height:1;padding:0 2px;color:#fff;font-weight:700;white-space:nowrap;';
+        dot.textContent = m.tag.split(' ')[0]; // solo emoji
+      }
       dot.onclick = function (e) {
         e.stopPropagation();
         if (player && replayState.duration) {
@@ -1962,7 +1988,7 @@
           updateProgressBar();
 
           // Render marker comportamentali + click/scroll/input sulla progress bar
-          var sessionMarkers = currentSession.markers || [];
+          sessionMarkers = currentSession.markers || [];
           // Aggiungi click rrweb come marker (campionati, max 40)
           var step = Math.max(1, Math.floor(rrClicks.length / 40));
           for (var ci = 0; ci < rrClicks.length; ci += step) {
@@ -2154,11 +2180,27 @@
     if (!currentSession) return;
     var tags = (currentSession.tags || []).slice();
     var idx  = tags.indexOf(tag);
-    if (idx === -1) tags.push(tag);
-    else            tags.splice(idx, 1);
+    if (idx === -1) {
+      tags.push(tag);
+      // Registra timestamp del replay nel momento in cui viene aggiunto il tag
+      var tagMarkers = (currentSession.tagMarkers || []).slice();
+      tagMarkers.push({ tag: tag, t: replayState.current || 0 });
+      currentSession.tagMarkers = tagMarkers;
+      var s2 = sessions.find(function (x) { return x.id === currentSession.id; });
+      if (s2) s2.tagMarkers = tagMarkers;
+    } else {
+      tags.splice(idx, 1);
+      // Rimuove tutti i marker di questo tag
+      var tm = (currentSession.tagMarkers || []).filter(function (m) { return m.tag !== tag; });
+      currentSession.tagMarkers = tm;
+      var s3 = sessions.find(function (x) { return x.id === currentSession.id; });
+      if (s3) s3.tagMarkers = tm;
+    }
     currentSession.tags = tags;
     var s = sessions.find(function (x) { return x.id === currentSession.id; });
     if (s) s.tags = tags;
+    // Aggiorna marker sulla barra
+    if (replayState.duration) renderReplayMarkers(sessionMarkers, replayState.duration);
     // Update tag picker buttons
     TAGS_LIST.forEach(function (t, i) {
       var btn = document.getElementById('tpick-' + i);
@@ -2168,7 +2210,7 @@
     apiFetch(API + '/api/sessions/' + currentSession.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags: tags }),
+      body: JSON.stringify({ tags: tags, tagMarkers: currentSession.tagMarkers }),
     });
   };
 
