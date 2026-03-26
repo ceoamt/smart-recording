@@ -560,13 +560,16 @@ async function router(req, res) {
     return;
   }
 
-  // ── DELETE /api/sessions (elimina tutto) ─────────────────────────────────
+  // ── DELETE /api/sessions (elimina tutto, opz. filtro ?siteId=) ──────────
   if (method === 'DELETE' && pathname === '/api/sessions') {
     if (!isAuthenticated(req)) { json(res, 401, { error: 'unauthorized' }); return; }
+    const qSiteId  = new URL('http://x' + req.url).searchParams.get('siteId');
     const sessions = readSessions();
-    sessions.forEach(s => deleteEventFile(s.id));
-    writeSessions([]);
-    json(res, 200, { ok: true, deleted: sessions.length });
+    const toDelete = qSiteId ? sessions.filter(s => s.siteId === qSiteId) : sessions;
+    const keep     = qSiteId ? sessions.filter(s => s.siteId !== qSiteId) : [];
+    toDelete.forEach(s => deleteEventFile(s.id));
+    writeSessions(keep);
+    json(res, 200, { ok: true, deleted: toDelete.length });
     return;
   }
 

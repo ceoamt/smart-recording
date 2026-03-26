@@ -2113,10 +2113,13 @@
     }
   };
 
-  // ── Elimina tutte le sessioni ─────────────────────────────────────────────
+  // ── Elimina tutte le sessioni del cliente corrente ────────────────────────
   window.deleteAllSessions = function () {
-    if (!confirm('Eliminare TUTTE le sessioni registrate?\nQuesta azione non è reversibile.')) return;
-    apiFetch(API + '/api/sessions', { method: 'DELETE' })
+    var label = currentClient ? '"' + currentClient.name + '"' : 'tutti i clienti';
+    if (!confirm('Eliminare tutte le sessioni di ' + label + '?\nQuesta azione non è reversibile.')) return;
+    var url = API + '/api/sessions';
+    if (currentClient) url += '?siteId=' + encodeURIComponent(currentClient.siteId);
+    apiFetch(url, { method: 'DELETE' })
       .then(function () {
         currentSession = null;
         document.querySelector('.sidebar') && document.querySelector('.sidebar').classList.remove('hidden');
