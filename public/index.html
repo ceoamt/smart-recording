@@ -646,14 +646,15 @@
     }
     .replay-progress {
       flex: 1;
-      height: 6px;
+      height: 10px;
       background: var(--border);
       border-radius: 4px;
       cursor: pointer;
       position: relative;
       margin: 0 4px;
+      overflow: visible;
     }
-    .replay-progress:hover { height: 8px; }
+    .replay-progress:hover { height: 12px; }
     .replay-progress-fill {
       height: 100%;
       background: var(--accent);
@@ -1774,21 +1775,27 @@
     if (!wrap || !duration) return;
     wrap.innerHTML = '';
 
-    // Includi anche i tag applicati manualmente (con timestamp se disponibile)
-    var allMarkers = markers.slice();
+    // Tag già applicati alla sessione → mostrati come bandierine sopra la barra
+    var sessionTags = currentSession ? (currentSession.tags || []) : [];
+    var tagMarkerMap = {};  // tag → t (dal tagMarkers se disponibile)
     if (currentSession && currentSession.tagMarkers) {
-      currentSession.tagMarkers.forEach(function (tm) {
-        allMarkers.push({ type: 'tag_' + tm.tag, t: tm.t, tag: tm.tag });
-      });
+      currentSession.tagMarkers.forEach(function(tm) { tagMarkerMap[tm.tag] = tm.t; });
     }
 
+    // Aggiungi tag senza timestamp come marker fissi (distribuiti sopra la barra)
+    var allMarkers = markers.slice();
+    sessionTags.forEach(function(tag, i) {
+      var t = tagMarkerMap[tag] !== undefined ? tagMarkerMap[tag] : null;
+      allMarkers.push({ type: 'tag_' + tag, t: t !== null ? t : 0, tag: tag, isSessionTag: t === null, tagIndex: i });
+    });
+
     allMarkers.forEach(function (m) {
-      if (m.t === undefined) return;
-      var pct   = Math.min(99, (m.t / duration) * 100);
+      if (m.t === undefined || m.t === null) return;
+      var pct   = Math.min(99.5, (m.t / duration) * 100);
       var color = MARKER_COLORS[m.type] || '#7a7f9a';
       var isTag    = m.type && m.type.indexOf('tag_') === 0;
-      var isClick  = m.type === 'click';
-      var isSmall  = (m.type === 'scroll' || m.type === 'input');
+      var isHeavy  = (m.type === 'rage_click' || m.type === 'console_error' || m.type === 'uturn' || m.type === 'page_change');
+      var isScroll = m.type === 'scroll';
       var label = m.type === 'rage_click'    ? '😠 Rage click' :
                   m.type === 'console_error' ? '⚠ Errore JS: ' + (m.msg || '') :
                   m.type === 'uturn'         ? '↩ U-turn → ' + (m.to || '') :
@@ -1798,18 +1805,35 @@
                   m.type === 'input'         ? '⌨ Input' :
                   isTag                      ? m.tag :
                   m.type.replace('custom_','') + ': ' + JSON.stringify(m);
-      var sz = isTag ? '10px' : isSmall ? '6px' : isClick ? '8px' : '9px';
-      var h  = isTag ? '14px' : sz;
-      var dot = document.createElement('div');
-      dot.title = label;
-      dot.style.cssText = 'position:absolute;top:50%;left:' + pct + '%;transform:translate(-50%,-50%);' +
-        'width:' + sz + ';height:' + h + ';border-radius:' + (isTag ? '3px' : '50%') + ';background:' + color + ';cursor:pointer;z-index:' + (isTag ? '3' : '2') + ';' +
-        'border:1px solid rgba(255,255,255,.4);opacity:' + (isSmall ? '.65' : '1') + ';';
+
+      var el = document.createElement('div');
+      el.title = label;
+
       if (isTag) {
-        dot.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:8px;line-height:1;padding:0 2px;color:#fff;font-weight:700;white-space:nowrap;';
-        dot.textContent = m.tag.split(' ')[0]; // solo emoji
+        // Bandierina sopra la barra con emoji
+        var flagOffset = (m.tagIndex || 0) * 16;  // offset verticale se più tag stesso punto
+        el.style.cssText = 'position:absolute;bottom:100%;left:' + pct + '%;transform:translateX(-50%);' +
+          'display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:5;' +
+          'margin-bottom:' + (2 + flagOffset) + 'px;';
+        var badge = document.createElement('div');
+        badge.style.cssText = 'background:' + color + ';color:#fff;font-size:10px;font-weight:700;' +
+          'padding:2px 5px;border-radius:4px;white-space:nowrap;line-height:1.4;' +
+          'box-shadow:0 2px 6px rgba(0,0,0,.4);';
+        badge.textContent = m.tag;
+        var stem = document.createElement('div');
+        stem.style.cssText = 'width:2px;height:8px;background:' + color + ';opacity:.8;';
+        el.appendChild(badge);
+        el.appendChild(stem);
+      } else {
+        // Linea verticale che copre tutta l'altezza della barra
+        var w   = isHeavy ? '3px' : isScroll ? '1px' : '2px';
+        var opa = isScroll ? '.4' : isHeavy ? '1' : '.75';
+        el.style.cssText = 'position:absolute;top:0;left:' + pct + '%;transform:translateX(-50%);' +
+          'width:' + w + ';height:100%;background:' + color + ';cursor:pointer;z-index:2;opacity:' + opa + ';' +
+          'border-radius:2px;';
       }
-      dot.onclick = function (e) {
+
+      el.onclick = function (e) {
         e.stopPropagation();
         if (player && replayState.duration) {
           var ms = Math.round((pct / 100) * replayState.duration);
@@ -1819,7 +1843,7 @@
           updateProgressBar();
         }
       };
-      wrap.appendChild(dot);
+      wrap.appendChild(el);
     });
   }
 
