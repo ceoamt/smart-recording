@@ -341,6 +341,13 @@ async function router(req, res) {
       return;
     }
 
+    // Sample rate server-side (es. 10% → scarta 90% delle sessioni in arrivo)
+    const sampleRate = client.sampleRate !== undefined ? client.sampleRate : 100;
+    if (sampleRate < 100 && Math.random() * 100 > sampleRate) {
+      json(res, 200, { ok: false, reason: 'sampled_out' });
+      return;
+    }
+
     // Limite massimo sessioni per cliente
     if (client.maxSessions > 0) {
       const clientCount = sessions.filter(s => s.siteId === siteId).length;
@@ -485,6 +492,7 @@ async function router(req, res) {
     if (body.name        !== undefined) clients[idx].name        = body.name;
     if (body.maxSessions !== undefined) clients[idx].maxSessions = Number(body.maxSessions) || 0;
     if (body.ttlDays     !== undefined) clients[idx].ttlDays     = Number(body.ttlDays)     || 0;
+    if (body.sampleRate  !== undefined) clients[idx].sampleRate  = Math.min(100, Math.max(1, Number(body.sampleRate) || 100));
     writeClients(clients);
     json(res, 200, clients[idx]);
     return;

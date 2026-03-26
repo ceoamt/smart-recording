@@ -1109,6 +1109,23 @@
       <p class="hint">Quando il limite è raggiunto, le nuove sessioni vengono scartate silenziosamente. Usa <strong>∞ Illimitato</strong> per non porre vincoli.</p>
     </div>
 
+    <!-- Sample rate -->
+    <div class="settings-field">
+      <label>
+        Percentuale sessioni registrate
+        <span id="csm-sample-val">100%</span>
+      </label>
+      <div class="settings-presets" id="csm-sample-presets">
+        <button class="preset-btn" onclick="setSampleRate(100)">100%</button>
+        <button class="preset-btn" onclick="setSampleRate(50)">50%</button>
+        <button class="preset-btn" onclick="setSampleRate(25)">25%</button>
+        <button class="preset-btn" onclick="setSampleRate(10)">10%</button>
+        <button class="preset-btn" onclick="setSampleRate(5)">5%</button>
+        <button class="preset-btn" onclick="setSampleRate(1)">1%</button>
+      </div>
+      <p class="hint">Il server accetta solo questa percentuale di sessioni in arrivo. <strong>100%</strong> registra tutto.</p>
+    </div>
+
     <!-- TTL -->
     <div class="settings-field">
       <label>
@@ -1344,16 +1361,18 @@
   };
 
   // ── Impostazioni cliente ───────────────────────────────────────────────────
-  var settingsClientId  = null;
+  var settingsClientId    = null;
   var settingsMaxSessions = 0;
-  var settingsTtl       = 0;
+  var settingsTtl         = 0;
+  var settingsSampleRate  = 100; // percentuale 1-100
 
   window.openClientSettings = function (id) {
     var c = clients.find(function (x) { return x.id === id; });
     if (!c) return;
     settingsClientId    = id;
-    settingsMaxSessions = c.maxSessions || 0;
-    settingsTtl         = c.ttlDays     || 0;
+    settingsMaxSessions = c.maxSessions  || 0;
+    settingsTtl         = c.ttlDays      || 0;
+    settingsSampleRate  = c.sampleRate   !== undefined ? c.sampleRate : 100;
 
     document.getElementById('csm-title').textContent = 'Impostazioni — ' + c.name;
     document.getElementById('csm-sub').textContent   = 'siteId: ' + c.siteId;
@@ -1372,6 +1391,13 @@
     var sVals = [0, 50, 100, 250, 500, 1000];
     sBtns.forEach(function (b, i) { b.classList.toggle('active', sVals[i] === settingsMaxSessions); });
 
+    // Sample rate label + highlight
+    var spv   = document.getElementById('csm-sample-val');
+    spv.textContent = settingsSampleRate + '%';
+    var spBtns = document.querySelectorAll('#csm-sample-presets .preset-btn');
+    var spVals = [100, 50, 25, 10, 5, 1];
+    spBtns.forEach(function (b, i) { b.classList.toggle('active', spVals[i] === settingsSampleRate); });
+
     // TTL label
     var tv = document.getElementById('csm-ttl-val');
     tv.textContent = settingsTtl === 0 ? 'default globale' : settingsTtl + ' giorni';
@@ -1382,15 +1408,16 @@
     tBtns.forEach(function (b, i) { b.classList.toggle('active', tVals[i] === settingsTtl); });
   }
 
-  window.setMaxSessions = function (v) { settingsMaxSessions = v; updateSettingsUI(); };
-  window.setTtl         = function (v) { settingsTtl = v;         updateSettingsUI(); };
+  window.setMaxSessions  = function (v) { settingsMaxSessions = v; updateSettingsUI(); };
+  window.setSampleRate   = function (v) { settingsSampleRate  = v; updateSettingsUI(); };
+  window.setTtl          = function (v) { settingsTtl = v;         updateSettingsUI(); };
 
   window.saveClientSettings = function () {
     if (!settingsClientId) return;
     apiFetch(API + '/api/clients/' + settingsClientId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ maxSessions: settingsMaxSessions, ttlDays: settingsTtl }),
+      body: JSON.stringify({ maxSessions: settingsMaxSessions, ttlDays: settingsTtl, sampleRate: settingsSampleRate }),
     }).then(function () {
       loadClients();
       document.getElementById('client-settings-modal').classList.add('hidden');
