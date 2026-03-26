@@ -676,6 +676,23 @@
       transition: opacity .1s;
     }
     .replay-progress:hover .replay-progress-thumb { opacity: 1; }
+
+    /* Click ripple overlay sul replay */
+    @keyframes sr-click-ripple {
+      0%   { width: 0px; height: 0px; opacity: .85; margin: 0; }
+      100% { width: 48px; height: 48px; opacity: 0; margin: -24px; }
+    }
+    .sr-click-ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 2.5px solid #5b6af0;
+      background: rgba(91,106,240,.12);
+      pointer-events: none;
+      animation: sr-click-ripple .55s ease-out forwards;
+      z-index: 100;
+    }
+    .sr-click-ripple.rage { border-color: #e05252; background: rgba(224,82,82,.12); }
+    #click-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 99; }
     .replay-time {
       font-size: 12px;
       color: var(--muted);
@@ -1728,10 +1745,13 @@
 
   // Marker colorati sulla barra di replay
   var MARKER_COLORS = {
-    rage_click:    '#e05252',  // rosso
-    console_error: '#f0a830',  // arancio
-    uturn:         '#a855f7',  // viola
-    page_change:   '#5b6af0',  // blu
+    rage_click:    '#e05252',  // rosso — frustrazione
+    console_error: '#f0a830',  // arancio — errore JS
+    uturn:         '#a855f7',  // viola — confusione
+    page_change:   '#5b6af0',  // blu — navigazione
+    click:         '#06b6d4',  // ciano — click utente
+    scroll:        '#4caf7d',  // verde — scroll
+    input:         '#f0a830',  // giallo — digitazione
   };
 
   function renderReplayMarkers(markers, duration) {
@@ -1744,14 +1764,19 @@
       var color = MARKER_COLORS[m.type] || '#7a7f9a';
       var label = m.type === 'rage_click'    ? '😠 Rage click' :
                   m.type === 'console_error' ? '⚠ Errore JS: ' + (m.msg || '') :
-                  m.type === 'uturn'         ? '↩ U-turn: ' + (m.from || '') + ' → ' + (m.to || '') :
+                  m.type === 'uturn'         ? '↩ U-turn → ' + (m.to || '') :
                   m.type === 'page_change'   ? '📄 ' + (m.path || '') :
+                  m.type === 'click'         ? '👆 Click' :
+                  m.type === 'scroll'        ? '↕ Scroll' :
+                  m.type === 'input'         ? '⌨ Input' :
                   m.type.replace('custom_','') + ': ' + JSON.stringify(m);
       var dot = document.createElement('div');
       dot.title = label;
+      var isSmall = (m.type === 'click' || m.type === 'scroll' || m.type === 'input');
+      var sz = isSmall ? '5px' : '8px';
       dot.style.cssText = 'position:absolute;top:50%;left:' + pct + '%;transform:translate(-50%,-50%);' +
-        'width:8px;height:8px;border-radius:50%;background:' + color + ';cursor:pointer;z-index:2;' +
-        'border:1.5px solid rgba(255,255,255,.4);';
+        'width:' + sz + ';height:' + sz + ';border-radius:50%;background:' + color + ';cursor:pointer;z-index:2;' +
+        'border:1px solid rgba(255,255,255,.3);opacity:' + (isSmall ? '.7' : '1') + ';';
       dot.onclick = function (e) {
         e.stopPropagation();
         if (player && replayState.duration) {
@@ -1850,6 +1875,26 @@
           var frameW = Math.round(vpW * scale);
           var frameH = Math.round(vpH * scale);
 
+          // ── Estrai click/scroll/input dagli eventi rrweb ─────────────────────
+          var t0 = events[0] ? events[0].timestamp : 0;
+          var rrClicks  = [];  // {t, x, y, rage}
+          var rrScrolls = [];  // {t}
+          var rrInputs  = [];  // {t}
+          events.forEach(function (e) {
+            if (e.type !== 3) return; // solo IncrementalSnapshot
+            var d = e.data || {};
+            var rel = e.timestamp - t0;
+            if (d.source === 2) { // MouseInteraction
+              if (d.type === 2 || d.type === 1) { // Click o MouseDown
+                rrClicks.push({ t: rel, x: d.x || 0, y: d.y || 0 });
+              }
+            } else if (d.source === 3) { // Scroll
+              rrScrolls.push({ t: rel });
+            } else if (d.source === 5) { // Input
+              rrInputs.push({ t: rel });
+            }
+          });
+
           // Outer container al size scalato, overflow hidden
           var frameEl = document.createElement('div');
           frameEl.className = 'replay-frame';
@@ -1859,6 +1904,11 @@
           frameEl.style.position = 'relative';
           frameEl.style.margin   = '0 auto';
           container.appendChild(frameEl);
+
+          // Overlay per click ripple (sopra il replay, pointer-events:none)
+          var clickOverlay = document.createElement('div');
+          clickOverlay.id = 'click-overlay';
+          frameEl.appendChild(clickOverlay);
 
           // Inner wrapper alla risoluzione originale, scalato via CSS
           var innerEl = document.createElement('div');
@@ -1905,8 +1955,34 @@
           replayState.current  = 0;
           updateProgressBar();
 
-          // Render marker comportamentali sulla progress bar
-          renderReplayMarkers(currentSession.markers || [], replayState.duration);
+          // Render marker comportamentali + click/scroll/input sulla progress bar
+          var sessionMarkers = currentSession.markers || [];
+          // Aggiungi click rrweb come marker (campionati, max 40)
+          var step = Math.max(1, Math.floor(rrClicks.length / 40));
+          for (var ci = 0; ci < rrClicks.length; ci += step) {
+            sessionMarkers = sessionMarkers.concat([{ type: 'click', t: rrClicks[ci].t }]);
+          }
+          // Aggiungi scroll raggruppati (ogni 3s, max 20)
+          var lastScrollMarker = -3000;
+          rrScrolls.forEach(function (s) {
+            if (s.t - lastScrollMarker > 3000) { sessionMarkers.push({ type: 'scroll', t: s.t }); lastScrollMarker = s.t; }
+          });
+          // Aggiungi input raggruppati (ogni 2s, max 20)
+          var lastInputMarker = -2000;
+          rrInputs.forEach(function (inp) {
+            if (inp.t - lastInputMarker > 2000) { sessionMarkers.push({ type: 'input', t: inp.t }); lastInputMarker = inp.t; }
+          });
+          renderReplayMarkers(sessionMarkers, replayState.duration);
+
+          // Salva dati nel replayState per il timer
+          replayState.scale        = scale;
+          replayState.clickOverlay = clickOverlay;
+          replayState.rrClicks     = rrClicks;
+          replayState.clickIdx     = 0;
+          // page_change markers ordinati per il tracking URL
+          replayState.pageMarkers  = (currentSession.markers || [])
+            .filter(function (m) { return m.type === 'page_change'; })
+            .sort(function (a, b) { return a.t - b.t; });
 
           player.play();
 
@@ -1915,6 +1991,35 @@
             if (!player || !replayState.playing) return;
             replayState.current = player.getCurrentTime ? player.getCurrentTime() : (replayState.current + 200);
             updateProgressBar();
+
+            // ── Ripple click ────────────────────────────────────────────────
+            var sc  = replayState.scale || 1;
+            var ov  = replayState.clickOverlay;
+            var cks = replayState.rrClicks || [];
+            var idx = replayState.clickIdx || 0;
+            while (idx < cks.length && cks[idx].t <= replayState.current) {
+              if (ov) {
+                var rip = document.createElement('div');
+                rip.className = 'sr-click-ripple';
+                rip.style.left = Math.round(cks[idx].x * sc) + 'px';
+                rip.style.top  = Math.round(cks[idx].y * sc) + 'px';
+                ov.appendChild(rip);
+                setTimeout(function (r) { if (r.parentNode) r.parentNode.removeChild(r); }, 600, rip);
+              }
+              idx++;
+            }
+            replayState.clickIdx = idx;
+
+            // ── URL segue la navigazione ────────────────────────────────────
+            var pms = replayState.pageMarkers || [];
+            var curPage = currentSession.url || '';
+            for (var pi = 0; pi < pms.length; pi++) {
+              if (pms[pi].t <= replayState.current) curPage = pms[pi].path || curPage;
+              else break;
+            }
+            var urlEl = document.getElementById('player-url');
+            if (urlEl && urlEl.textContent !== curPage) urlEl.textContent = curPage;
+
             if (replayState.current >= replayState.duration) {
               clearInterval(replayState.timer);
               replayState.playing = false;
