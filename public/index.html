@@ -1485,6 +1485,24 @@
   // ── Render lista (table view) ──────────────────────────────────────────────
   var TAGS_LIST = ['🐞 Bug','⚠️ UI/UX','😕 Confusion','😡 Frustration','🎉 Success','🏆 Conversion'];
 
+  // Converte codice paese → emoji bandiera
+  function countryFlag(cc) {
+    if (!cc || cc.length !== 2) return '';
+    return cc.toUpperCase().replace(/./g, function (c) {
+      return String.fromCodePoint(c.charCodeAt(0) + 127397);
+    });
+  }
+
+  // Badge rilevanza
+  function relevanceBadge(r, score) {
+    var colors = { high: '#e05252', medium: '#f0a830', low: '#4caf7d' };
+    var labels = { high: 'Alta', medium: 'Media', low: 'Bassa' };
+    var c = colors[r] || colors.low;
+    var l = labels[r] || 'Bassa';
+    return '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:' + c + ';background:' + c + '1a;border-radius:4px;padding:2px 6px;">' +
+      l + (score ? ' <span style="opacity:.6;font-weight:400">' + score + '</span>' : '') + '</span>';
+  }
+
   function renderSessions(list) {
     var container = document.getElementById('sessions-list');
     if (list.length === 0) {
@@ -1494,16 +1512,37 @@
 
     var showSite = currentClient === null && clients.length > 1;
 
-    var headerCols = '<th></th><th title="Preferito">★</th>' +
+    var headerCols =
+      '<th></th>' +
+      '<th title="Preferito">★</th>' +
+      '<th>Rilevanza</th>' +
       '<th>Landing</th>' +
+      '<th>Paese</th>' +
       (showSite ? '<th>Cliente</th>' : '') +
-      '<th>Eventi</th><th>Durata</th><th>Dispositivo</th><th>Tag</th><th>Data</th><th></th>';
+      '<th title="Pagine visitate">Pagine</th>' +
+      '<th title="Azioni registrate">Azioni</th>' +
+      '<th>Durata</th>' +
+      '<th>Dispositivo</th>' +
+      '<th>Tag</th>' +
+      '<th>Data</th>' +
+      '<th></th>';
 
     var rows = list.map(function (s) {
-      var isActive = currentSession && currentSession.id === s.id;
+      var isActive   = currentSession && currentSession.id === s.id;
       var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
-      var tagHtml   = (s.tags || []).map(function (t) { return '<span class="tag-pill">' + t + '</span>'; }).join('');
-      var liveIndicator = s.status === 'recording' ? ' <span style="color:var(--red);font-size:10px;font-weight:700;">● LIVE</span>' : '';
+      var tagHtml    = (s.tags || []).map(function (t) { return '<span class="tag-pill">' + t + '</span>'; }).join('');
+      var liveIndicator = s.status === 'recording'
+        ? ' <span style="color:var(--red);font-size:10px;font-weight:700;">● LIVE</span>' : '';
+      var flag = countryFlag(s.country);
+      var countryCell = flag
+        ? '<span title="' + escHtml(s.countryName || s.country) + '" style="font-size:16px">' + flag + '</span>'
+        : '<span style="color:var(--muted);font-size:11px">—</span>';
+
+      // Icone comportamentali nella riga
+      var behaviorHints = '';
+      if (s.rageClicks > 0)    behaviorHints += '<span title="' + s.rageClicks + ' rage click" style="color:#e05252;font-size:11px">😠×' + s.rageClicks + '</span> ';
+      if (s.consoleErrors > 0) behaviorHints += '<span title="' + s.consoleErrors + ' errori console" style="color:#f0a830;font-size:11px">⚠×' + s.consoleErrors + '</span> ';
+      if (s.uturns > 0)        behaviorHints += '<span title="' + s.uturns + ' u-turn" style="color:#7a7f9a;font-size:11px">↩×' + s.uturns + '</span> ';
 
       return '<tr' + (isActive ? ' class="active"' : '') + ' onclick="selectSession(\'' + s.id + '\')">' +
         '<td onclick="event.stopPropagation()" style="width:60px;padding:5px 6px;">' +
@@ -1514,9 +1553,12 @@
         '<td onclick="event.stopPropagation()" style="width:28px;padding:5px 4px;">' +
           '<button class="btn-star' + (s.starred ? ' starred' : '') + '" onclick="toggleStar(\'' + s.id + '\')" title="Segna come preferito">★</button>' +
         '</td>' +
+        '<td style="padding:5px 8px">' + relevanceBadge(s.relevance, s.relevanceScore) + '</td>' +
         '<td class="td-url" title="' + escHtml(s.url) + '">' + fmtShortUrl(s.url) + liveIndicator + '</td>' +
+        '<td style="text-align:center">' + countryCell + '</td>' +
         (showSite ? '<td class="td-site">' + escHtml(s.siteId || '') + '</td>' : '') +
-        '<td style="color:var(--muted)">' + (s.eventsCount || 0) + '</td>' +
+        '<td style="color:var(--muted);text-align:center">' + (s.pagesVisited || 1) + '</td>' +
+        '<td style="color:var(--muted)">' + (s.eventsCount || 0) + (behaviorHints ? ' ' + behaviorHints : '') + '</td>' +
         '<td style="color:var(--muted)">' + fmtDuration(s.duration) + '</td>' +
         '<td>' + deviceIcon + ' <span style="color:var(--muted)">' + fmtBrowser(s.userAgent) + (s.os ? ' · ' + s.os : '') + '</span></td>' +
         '<td class="td-tags">' + tagHtml + '</td>' +
@@ -1615,17 +1657,20 @@
     document.getElementById('player-url').textContent = currentSession.url;
     var s = currentSession;
     var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
+    var flag = countryFlag(s.country);
     document.getElementById('player-meta').innerHTML =
+      (s.relevance ? '<span>' + relevanceBadge(s.relevance, s.relevanceScore) + '</span>' : '') +
+      (flag ? '<span>' + flag + ' ' + (s.countryName || s.country) + '</span>' : '') +
       '<span>' + fmtDate(s.startTime) + '</span>' +
       '<span>Durata: ' + fmtDuration(s.duration) + '</span>' +
+      '<span>' + (s.pagesVisited || 1) + ' pagine</span>' +
       '<span>' + deviceIcon + ' ' + (s.deviceType || 'desktop') + '</span>' +
       '<span>' + fmtBrowser(s.userAgent) + '</span>' +
       (s.os          ? '<span>' + s.os + '</span>'            : '') +
       (s.language    ? '<span>🌐 ' + s.language + '</span>'  : '') +
-      (s.timezone    ? '<span>⏰ ' + s.timezone + '</span>'   : '') +
-      (s.connectionType ? '<span>📶 ' + s.connectionType + '</span>' : '') +
-      '<span>' + (s.viewport.width || '?') + '×' + (s.viewport.height || '?') + '</span>' +
-      (s.pixelRatio > 1 ? '<span>@' + s.pixelRatio + 'x</span>' : '') +
+      (s.rageClicks  ? '<span style="color:#e05252">😠 ' + s.rageClicks + ' rage click</span>' : '') +
+      (s.consoleErrors ? '<span style="color:#f0a830">⚠ ' + s.consoleErrors + ' errori JS</span>' : '') +
+      (s.uturns      ? '<span style="color:#a855f7">↩ ' + s.uturns + ' u-turn</span>' : '') +
       '<span>' + (s.eventsCount || 0) + ' eventi</span>';
 
     // Populate tag picker
@@ -1652,6 +1697,46 @@
     var s = Math.floor((ms || 0) / 1000);
     var m = Math.floor(s / 60); s = s % 60;
     return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  // Marker colorati sulla barra di replay
+  var MARKER_COLORS = {
+    rage_click:    '#e05252',  // rosso
+    console_error: '#f0a830',  // arancio
+    uturn:         '#a855f7',  // viola
+    page_change:   '#5b6af0',  // blu
+  };
+
+  function renderReplayMarkers(markers, duration) {
+    var wrap = document.getElementById('replay-markers');
+    if (!wrap || !duration) return;
+    wrap.innerHTML = '';
+    markers.forEach(function (m) {
+      if (m.t === undefined) return;
+      var pct   = Math.min(99, (m.t / duration) * 100);
+      var color = MARKER_COLORS[m.type] || '#7a7f9a';
+      var label = m.type === 'rage_click'    ? '😠 Rage click' :
+                  m.type === 'console_error' ? '⚠ Errore JS: ' + (m.msg || '') :
+                  m.type === 'uturn'         ? '↩ U-turn: ' + (m.from || '') + ' → ' + (m.to || '') :
+                  m.type === 'page_change'   ? '📄 ' + (m.path || '') :
+                  m.type.replace('custom_','') + ': ' + JSON.stringify(m);
+      var dot = document.createElement('div');
+      dot.title = label;
+      dot.style.cssText = 'position:absolute;top:50%;left:' + pct + '%;transform:translate(-50%,-50%);' +
+        'width:8px;height:8px;border-radius:50%;background:' + color + ';cursor:pointer;z-index:2;' +
+        'border:1.5px solid rgba(255,255,255,.4);';
+      dot.onclick = function (e) {
+        e.stopPropagation();
+        if (player && replayState.duration) {
+          var ms = Math.round((pct / 100) * replayState.duration);
+          player.play(ms);
+          replayState.current = ms;
+          replayState.playing = true;
+          updateProgressBar();
+        }
+      };
+      wrap.appendChild(dot);
+    });
   }
 
   function updateProgressBar() {
@@ -1769,6 +1854,7 @@
             '<div class="replay-progress" id="replay-progress" onclick="seekTo(event)" title="Clicca per saltare al punto">' +
               '<div class="replay-progress-fill" id="replay-fill"></div>' +
               '<div class="replay-progress-thumb" id="replay-thumb"></div>' +
+              '<div id="replay-markers"></div>' +
             '</div>' +
             '<span class="replay-time" id="replay-time">0:00 / 0:00</span>' +
             '<select class="replay-speed" onchange="changeSpeed(this)">' +
@@ -1791,6 +1877,9 @@
           replayState.playing  = true;
           replayState.current  = 0;
           updateProgressBar();
+
+          // Render marker comportamentali sulla progress bar
+          renderReplayMarkers(currentSession.markers || [], replayState.duration);
 
           player.play();
 

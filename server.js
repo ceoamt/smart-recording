@@ -156,6 +156,47 @@ function appendEvents(sessionId, newEvents) {
   return merged.length;
 }
 
+// ─── Geo lookup (ip-api.com, asincrono) ─────────────────────────────────────
+function geoLookup(ip) {
+  return new Promise(resolve => {
+    const clean = (ip || '').replace(/^::ffff:/, '');
+    if (!clean || clean === '127.0.0.1' || clean === '::1' || clean.startsWith('192.168') || clean.startsWith('10.')) {
+      return resolve({ country: '', countryName: '' });
+    }
+    const options = { hostname: 'ip-api.com', path: `/json/${clean}?fields=country,countryCode`, timeout: 2000 };
+    const req = http.get(options, res => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try { const j = JSON.parse(data); resolve({ country: j.countryCode || '', countryName: j.country || '' }); }
+        catch { resolve({ country: '', countryName: '' }); }
+      });
+    });
+    req.on('error', () => resolve({ country: '', countryName: '' }));
+    req.on('timeout', () => { req.destroy(); resolve({ country: '', countryName: '' }); });
+  });
+}
+
+// ─── Rilevanza sessione ──────────────────────────────────────────────────────
+function computeRelevance(session) {
+  let score = 0;
+  // Durata (max 25): 0-30s=0, 30s-2min crescente, >5min=25
+  const mins = (session.duration || 0) / 60000;
+  score += Math.min(mins / 5 * 25, 25);
+  // Pagine visitate (max 20): ogni pagina vale 4pt
+  score += Math.min((session.pagesVisited || 1) * 4, 20);
+  // Rage click (max 30): alta priorità → frustrazione
+  score += Math.min((session.rageClicks || 0) * 12, 30);
+  // Errori console (max 15): bug tecnici
+  score += Math.min((session.consoleErrors || 0) * 8, 15);
+  // U-turn (max 10): confusione di navigazione
+  score += Math.min((session.uturns || 0) * 5, 10);
+
+  const pct   = Math.min(Math.round(score), 100);
+  const level = pct >= 60 ? 'high' : pct >= 30 ? 'medium' : 'low';
+  return { relevanceScore: pct, relevance: level };
+}
+
 function deleteEventFile(sessionId) {
   const gz   = path.join(EVENTS_DIR, `${sessionId}.json.gz`);
   const json = path.join(EVENTS_DIR, `${sessionId}.json`);
@@ -336,11 +377,30 @@ async function router(req, res) {
       pixelRatio:     body.pixelRatio     || 1,
       eventsCount:    0,
       status:         'recording',
+      // Comportamentali (aggiornati a /end)
+      country:        '',
+      countryName:    '',
+      pagesVisited:   1,
+      rageClicks:     0,
+      consoleErrors:  0,
+      uturns:         0,
+      relevanceScore: 0,
+      relevance:      'low',
+      markers:        [],
     };
 
     sessions.push(session);
     writeSessions(sessions);
     json(res, 200, { ok: true, sessionId: id });
+
+    // Geo lookup asincrono (non blocca la risposta)
+    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+    geoLookup(clientIp).then(geo => {
+      if (!geo.country) return;
+      const ss = readSessions();
+      const ix = ss.findIndex(s => s.id === id);
+      if (ix !== -1) { ss[ix].country = geo.country; ss[ix].countryName = geo.countryName; writeSessions(ss); }
+    }).catch(() => {});
     return;
   }
 
@@ -366,6 +426,7 @@ async function router(req, res) {
   const endMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/end$/);
   if (method === 'POST' && endMatch) {
     const id       = endMatch[1];
+    const body     = await readBody(req);
     const sessions = readSessions();
     const idx      = sessions.findIndex(s => s.id === id);
 
@@ -374,6 +435,20 @@ async function router(req, res) {
     sessions[idx].endTime  = Date.now();
     sessions[idx].duration = sessions[idx].endTime - sessions[idx].startTime;
     sessions[idx].status   = 'completed';
+
+    // Metriche comportamentali dal tracker
+    if (body.rageClicks    !== undefined) sessions[idx].rageClicks    = body.rageClicks;
+    if (body.consoleErrors !== undefined) sessions[idx].consoleErrors = body.consoleErrors;
+    if (body.uturns        !== undefined) sessions[idx].uturns        = body.uturns;
+    if (body.pagesVisited  !== undefined) sessions[idx].pagesVisited  = body.pagesVisited;
+    if (body.pageList      !== undefined) sessions[idx].pageList      = body.pageList;
+    if (body.markers       !== undefined) sessions[idx].markers       = body.markers;
+
+    // Calcola rilevanza
+    const rel = computeRelevance(sessions[idx]);
+    sessions[idx].relevanceScore = rel.relevanceScore;
+    sessions[idx].relevance      = rel.relevance;
+
     writeSessions(sessions);
     json(res, 200, { ok: true });
     return;
@@ -441,7 +516,13 @@ async function router(req, res) {
     const siteId   = parsed.searchParams.get('siteId');
     let sessions   = readSessions();
     if (siteId) sessions = sessions.filter(s => s.siteId === siteId);
-    const sorted   = [...sessions].sort((a, b) => b.startTime - a.startTime);
+    // Ordina: prima le live, poi per relevanceScore desc, poi per data desc
+    const sorted   = [...sessions].sort((a, b) => {
+      if (a.status === 'recording' && b.status !== 'recording') return -1;
+      if (b.status === 'recording' && a.status !== 'recording') return  1;
+      if ((b.relevanceScore || 0) !== (a.relevanceScore || 0)) return (b.relevanceScore || 0) - (a.relevanceScore || 0);
+      return b.startTime - a.startTime;
+    });
     json(res, 200, sorted);
     return;
   }
