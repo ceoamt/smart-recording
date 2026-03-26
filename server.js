@@ -29,41 +29,34 @@ const PUB_DIR      = path.join(__dirname, 'public');
 const TTL_DAYS     = parseInt(process.env.SESSION_TTL_DAYS || '30', 10);
 const TTL_MS       = TTL_DAYS * 24 * 60 * 60 * 1000;
 
-// ─── Autenticazione ──────────────────────────────────────────────────────────
+// ─── Autenticazione stateless (HMAC — sopravvive ai restart/redeploy) ────────
 const AUTH_USER   = process.env.AUTH_USER || 'amtitalia';
 const AUTH_PASS   = process.env.AUTH_PASS || 'smartrec2026?!?!';
 const COOKIE_NAME = 'sr_session';
-const AUTH_FILE   = path.join(DATA_DIR, 'auth_tokens.json');
 const TOKEN_TTL   = 90 * 24 * 60 * 60 * 1000; // 90 giorni
 
-// Carica tokens da disco (persistono tra i redeploy)
-function loadAuthTokens() {
-  try {
-    if (fs.existsSync(AUTH_FILE)) {
-      const data = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8'));
-      const now = Date.now();
-      const map = new Map();
-      Object.entries(data).forEach(([token, info]) => {
-        if (now - info.createdAt < TOKEN_TTL) map.set(token, info); // scarta i token scaduti
-      });
-      return map;
-    }
-  } catch {}
-  return new Map();
+// Segreto derivato dalle credenziali — stabile tra i redeploy finché la password non cambia
+const TOKEN_SECRET = crypto.createHash('sha256')
+  .update(AUTH_USER + ':' + AUTH_PASS + ':sr2026')
+  .digest();
+
+function createToken() {
+  const ts  = Date.now().toString();
+  const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(ts).digest('hex');
+  return ts + '.' + sig;
 }
 
-function saveAuthTokens(map) {
-  try {
-    const obj = {};
-    map.forEach((v, k) => { obj[k] = v; });
-    fs.writeFileSync(AUTH_FILE, JSON.stringify(obj), 'utf8');
-  } catch {}
-}
-
-const SESSIONS_AUTH = loadAuthTokens();
-
-function generateToken() {
-  return crypto.randomBytes(32).toString('hex');
+function validateToken(token) {
+  if (!token) return false;
+  const dot = token.indexOf('.');
+  if (dot === -1) return false;
+  const ts  = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  if (!ts || !sig) return false;
+  const expected = crypto.createHmac('sha256', TOKEN_SECRET).update(ts).digest('hex');
+  if (expected !== sig) return false;          // firma non valida
+  if (Date.now() - parseInt(ts) > TOKEN_TTL)  return false; // scaduto
+  return true;
 }
 
 function parseCookies(req) {
@@ -76,14 +69,14 @@ function parseCookies(req) {
 }
 
 function isAuthenticated(req) {
-  // 1. Cookie (fallback per accesso diretto da browser)
+  // 1. Cookie (accesso diretto da browser)
   const cookieToken = parseCookies(req)[COOKIE_NAME];
-  if (cookieToken && SESSIONS_AUTH.has(cookieToken)) return true;
-  // 2. Authorization: Bearer TOKEN (usato da iframe / localStorage flow)
+  if (validateToken(cookieToken)) return true;
+  // 2. Authorization: Bearer TOKEN (iframe / localStorage)
   const auth = req.headers['authorization'] || '';
   if (auth.startsWith('Bearer ')) {
     const bearerToken = auth.slice(7).trim();
-    if (bearerToken && SESSIONS_AUTH.has(bearerToken)) return true;
+    if (validateToken(bearerToken)) return true;
   }
   return false;
 }
@@ -297,14 +290,11 @@ async function router(req, res) {
   if (method === 'POST' && pathname === '/api/login') {
     const body = await readBody(req);
     if (body.username === AUTH_USER && body.password === AUTH_PASS) {
-      const token = generateToken();
-      SESSIONS_AUTH.set(token, { createdAt: Date.now() });
-      saveAuthTokens(SESSIONS_AUTH); // persisti su disco
-      // Mantengo anche il cookie per compatibilità accesso diretto
+      const token   = createToken(); // firmato HMAC, nessuno stato server necessario
       const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
-      const cookieFlags = isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
-      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; ${cookieFlags}`);
-      json(res, 200, { ok: true, token }); // token restituito per localStorage (iframe)
+      const flags   = isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
+      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; Path=/; ${flags}`);
+      json(res, 200, { ok: true, token }); // token in body per localStorage (iframe)
     } else {
       json(res, 401, { ok: false, error: 'Credenziali non valide' });
     }
@@ -313,9 +303,10 @@ async function router(req, res) {
 
   // ── POST /api/logout ──────────────────────────────────────────────────────
   if (method === 'POST' && pathname === '/api/logout') {
-    const token = parseCookies(req)[COOKIE_NAME];
-    if (token) { SESSIONS_AUTH.delete(token); saveAuthTokens(SESSIONS_AUTH); }
-    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; ${cookieFlags(req)}; Max-Age=0`);
+    // Token HMAC: basta cancellare cookie e localStorage lato client
+    const isHttps = req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
+    const flags   = isHttps ? 'HttpOnly; SameSite=None; Secure' : 'HttpOnly; SameSite=Lax';
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; ${flags}; Max-Age=0`);
     json(res, 200, { ok: true });
     return;
   }
