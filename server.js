@@ -560,6 +560,16 @@ async function router(req, res) {
     return;
   }
 
+  // ── DELETE /api/sessions (elimina tutto) ─────────────────────────────────
+  if (method === 'DELETE' && pathname === '/api/sessions') {
+    if (!isAuthenticated(req)) { json(res, 401, { error: 'unauthorized' }); return; }
+    const sessions = readSessions();
+    sessions.forEach(s => deleteEventFile(s.id));
+    writeSessions([]);
+    json(res, 200, { ok: true, deleted: sessions.length });
+    return;
+  }
+
   // ── DELETE /api/sessions/:id ──────────────────────────────────────────────
   const delMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
   if (method === 'DELETE' && delMatch) {
