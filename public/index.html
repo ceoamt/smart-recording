@@ -1775,18 +1775,47 @@
     if (!wrap || !duration) return;
     wrap.innerHTML = '';
 
-    // Tag già applicati alla sessione → mostrati come bandierine sopra la barra
-    var sessionTags = currentSession ? (currentSession.tags || []) : [];
-    var tagMarkerMap = {};  // tag → t (dal tagMarkers se disponibile)
+    // Mappa tipo-marker → tag automatico corrispondente
+    var AUTO_TAG_MAP = {
+      rage_click:    '😡 Frustration',
+      console_error: '🐞 Bug',
+      uturn:         '😕 Confusion',
+    };
+
+    // Tag manuali (con timestamp dal tagMarkers)
+    var manualTagMarkerMap = {};
     if (currentSession && currentSession.tagMarkers) {
-      currentSession.tagMarkers.forEach(function(tm) { tagMarkerMap[tm.tag] = tm.t; });
+      currentSession.tagMarkers.forEach(function(tm) { manualTagMarkerMap[tm.tag] = tm.t; });
     }
 
-    // Aggiungi tag senza timestamp come marker fissi (distribuiti sopra la barra)
+    // Costruisce allMarkers: eventi + bandierine tag
     var allMarkers = markers.slice();
+    var autoTagsAdded = {};  // evita duplicati per tag manuali già nel tagMarkers
+
+    // 1. Tag automatici: una bandierina per ogni evento corrispondente
+    markers.forEach(function(m) {
+      var autoTag = AUTO_TAG_MAP[m.type];
+      if (!autoTag) return;
+      // Non aggiungere se il tag manuale copre già questo punto
+      if (manualTagMarkerMap[autoTag] !== undefined) return;
+      allMarkers.push({ type: 'tag_' + autoTag, t: m.t, tag: autoTag, tagIndex: 0 });
+    });
+
+    // 2. Tag manuali (aggiunti durante il replay con timestamp preciso)
+    if (currentSession && currentSession.tagMarkers) {
+      currentSession.tagMarkers.forEach(function(tm, i) {
+        allMarkers.push({ type: 'tag_' + tm.tag, t: tm.t, tag: tm.tag, tagIndex: i });
+      });
+    }
+
+    // 3. Tag della sessione senza nessun timestamp (né auto né manuale) → t=0
+    var sessionTags = currentSession ? (currentSession.tags || []) : [];
     sessionTags.forEach(function(tag, i) {
-      var t = tagMarkerMap[tag] !== undefined ? tagMarkerMap[tag] : null;
-      allMarkers.push({ type: 'tag_' + tag, t: t !== null ? t : 0, tag: tag, isSessionTag: t === null, tagIndex: i });
+      var hasAuto   = markers.some(function(m) { return AUTO_TAG_MAP[m.type] === tag; });
+      var hasManual = manualTagMarkerMap[tag] !== undefined;
+      if (!hasAuto && !hasManual) {
+        allMarkers.push({ type: 'tag_' + tag, t: 0, tag: tag, tagIndex: i });
+      }
     });
 
     allMarkers.forEach(function (m) {
