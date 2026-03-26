@@ -1,6 +1,6 @@
 /**
- * Smart Recording – Tracker v2
- * Rileva: rage click, u-turn, errori console, navigazione SPA, eventi custom
+ * Smart Recording – Tracker v3
+ * Rileva: rage click, u-turn, errori console, navigazione SPA e multi-pagina
  *
  * Uso base:
  *   window.SmartRecordingConfig = { siteId: 'mio-sito' };
@@ -23,7 +23,21 @@
   var SAMPLE_RATE    = cfg.sampleRate    !== undefined ? parseFloat(cfg.sampleRate)    : 1.0;
   var COOLDOWN_HOURS = cfg.cooldownHours !== undefined ? parseFloat(cfg.cooldownHours) : 0;
 
+  // ── Session ID persistente per navigazioni multi-pagina (stesso tab) ────────
+  var _SID_KEY      = '__sr_sid_' + SITE_ID;
+  var _MET_KEY      = '__sr_met_' + SITE_ID;
+  var _storedId     = sessionStorage.getItem(_SID_KEY);
+  var _continuing   = !!_storedId;                        // true = continuazione di una sessione
+  var SESSION_ID    = _storedId || generateId();
+  if (!_storedId) sessionStorage.setItem(_SID_KEY, SESSION_ID);
+
+  // Carica metriche cumulative dalle pagine precedenti (se continuazione)
+  var _saved        = _continuing ? (function () {
+    try { return JSON.parse(sessionStorage.getItem(_MET_KEY) || 'null'); } catch(e) { return null; }
+  })() : null;
+
   function shouldRecord() {
+    if (_continuing) return true;   // già deciso al caricamento della prima pagina
     if (Math.random() > SAMPLE_RATE) return false;
     if (COOLDOWN_HOURS > 0) {
       var key  = '__sr_last_' + SITE_ID;
@@ -42,20 +56,20 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
-  var SESSION_ID     = generateId();
   var events         = [];
   var flushTimer     = null;
   var stopFn         = null;
   var sessionStarted = false;
 
-  // ── Metriche comportamentali ────────────────────────────────────────────────
-  var rageClicks    = 0;
-  var consoleErrors = 0;
-  var uturns        = 0;
-  var pageList      = [];        // array di { path, time }
-  var markers       = [];        // eventi chiave con timestamp relativo
+  // ── Metriche comportamentali (cumulative tra pagine) ─────────────────────────
+  var rageClicks    = _saved ? _saved.rageClicks    : 0;
+  var consoleErrors = _saved ? _saved.consoleErrors : 0;
+  var uturns        = _saved ? _saved.uturns        : 0;
+  var pageList      = _saved ? _saved.pageList      : [];   // { path, time }[]
+  var markers       = _saved ? _saved.markers       : [];   // { type, t, ... }[]
 
-  var SESSION_START_TS = null;   // impostato in startSession
+  // Timestamp di inizio sessione (originale, non resettato ad ogni pagina)
+  var SESSION_START_TS = _saved ? _saved.startTs : null;
 
   function relTime() {
     return SESSION_START_TS ? Date.now() - SESSION_START_TS : 0;
@@ -63,6 +77,14 @@
 
   function addMarker(type, payload) {
     markers.push(Object.assign({ type: type, t: relTime() }, payload || {}));
+  }
+
+  // ── Pagina corrente ──────────────────────────────────────────────────────────
+  var currentPath = window.location.pathname + window.location.search;
+  var lastPath    = pageList.length ? pageList[pageList.length - 1].path : null;
+  if (currentPath !== lastPath) {
+    pageList.push({ path: currentPath, time: Date.now() });
+    if (_continuing) addMarker('page_change', { path: currentPath });
   }
 
   // ── Rage click (3+ click in <700ms entro 30px) ─────────────────────────────
@@ -81,7 +103,7 @@
   }
   document.addEventListener('click', onDocClick, true);
 
-  // ── Navigazione pagine (SPA: pushState / popstate) ─────────────────────────
+  // ── Navigazione SPA (pushState / popstate) ──────────────────────────────────
   var lastNavTime = Date.now();
 
   function onPageChange(newPath) {
@@ -89,7 +111,6 @@
     var prev = pageList.length ? pageList[pageList.length - 1].path : null;
     if (newPath === prev) return;
 
-    // U-turn: torna su una pagina già visitata entro 30s
     var recentPaths = pageList.slice(-5).map(function (p) { return p.path; });
     if (recentPaths.indexOf(newPath) !== -1 && (now - lastNavTime) < 30000) {
       uturns++;
@@ -101,10 +122,6 @@
     lastNavTime = now;
   }
 
-  // Inizializza con la pagina di landing
-  pageList.push({ path: window.location.pathname + window.location.search, time: Date.now() });
-
-  // Intercetta pushState / replaceState
   function wrapHistory(method) {
     var orig = history[method];
     history[method] = function () {
@@ -182,22 +199,30 @@
 
   // ── Avvio sessione ──────────────────────────────────────────────────────────
   function startSession() {
-    SESSION_START_TS = Date.now();
-    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    post('/api/sessions/start', {
-      sessionId:      SESSION_ID,
-      siteId:         SITE_ID,
-      url:            window.location.href,
-      referrer:       document.referrer || '',
-      userAgent:      navigator.userAgent,
-      viewport:       { width: window.innerWidth, height: window.innerHeight },
-      deviceType:     getDeviceType(),
-      os:             getOS(),
-      language:       navigator.language || '',
-      timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
-      connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
-      pixelRatio:     window.devicePixelRatio || 1,
-    }, false);
+    if (!SESSION_START_TS) SESSION_START_TS = Date.now();
+
+    if (_continuing) {
+      // Segnala nuova pagina alla sessione esistente sul server
+      post('/api/sessions/' + SESSION_ID + '/page', {
+        url: window.location.href,
+      });
+    } else {
+      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      post('/api/sessions/start', {
+        sessionId:      SESSION_ID,
+        siteId:         SITE_ID,
+        url:            window.location.href,
+        referrer:       document.referrer || '',
+        userAgent:      navigator.userAgent,
+        viewport:       { width: window.innerWidth, height: window.innerHeight },
+        deviceType:     getDeviceType(),
+        os:             getOS(),
+        language:       navigator.language || '',
+        timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+        connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
+        pixelRatio:     window.devicePixelRatio || 1,
+      }, false);
+    }
     sessionStarted = true;
   }
 
@@ -226,17 +251,35 @@
     });
   }
 
-  // ── Unload: flush + chiusura con metriche ───────────────────────────────────
+  // ── Salva metriche cumulative in sessionStorage ──────────────────────────────
+  function saveMetrics() {
+    try {
+      sessionStorage.setItem(_MET_KEY, JSON.stringify({
+        rageClicks:    rageClicks,
+        consoleErrors: consoleErrors,
+        uturns:        uturns,
+        pageList:      pageList.slice(0, 50),
+        markers:       markers.slice(0, 500),
+        startTs:       SESSION_START_TS,
+      }));
+    } catch (e) {}
+  }
+
+  // ── Unload: salva metriche + flush + chiude sessione ────────────────────────
   function onUnload() {
     if (!sessionStarted) return;
-    sessionStarted = false; // evita doppio invio
+    sessionStarted = false;
+
+    // Persiste metriche per la prossima pagina (stessa tab)
+    saveMetrics();
+
     flush(true);
     post('/api/sessions/' + SESSION_ID + '/end', {
       rageClicks:    rageClicks,
       consoleErrors: consoleErrors,
       uturns:        uturns,
       pagesVisited:  pageList.length,
-      pageList:      pageList.slice(0, 50),  // max 50 pagine
+      pageList:      pageList.slice(0, 50),
       markers:       markers,
     }, true);
     if (typeof stopFn === 'function') stopFn();
@@ -253,7 +296,6 @@
     getSessionId: function () { return SESSION_ID; },
     track:        function (eventName, payload) {
       addMarker('custom_' + eventName, payload || {});
-      // Flush periodico — non immediato per non interrompere la registrazione
     },
   };
 

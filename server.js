@@ -91,9 +91,10 @@ function isPublicRoute(method, pathname) {
   if (pathname === '/api/logout')        return true;
   if (pathname === '/tracker.js')        return true;
   if (pathname === '/test.html')         return true;
-  if (method === 'POST' && pathname === '/api/sessions/start')            return true;
-  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/events$/.test(pathname)) return true;
-  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/end$/.test(pathname))    return true;
+  if (method === 'POST' && pathname === '/api/sessions/start')                  return true;
+  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/events$/.test(pathname))  return true;
+  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/end$/.test(pathname))     return true;
+  if (method === 'POST' && /^\/api\/sessions\/[^/]+\/page$/.test(pathname))    return true;
   return false;
 }
 
@@ -420,6 +421,22 @@ async function router(req, res) {
     return;
   }
 
+  // ── POST /api/sessions/:id/page (nuova pagina, stessa sessione) ─────────────
+  const pageMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/page$/);
+  if (method === 'POST' && pageMatch) {
+    const id       = pageMatch[1];
+    const body     = await readBody(req);
+    const sessions = readSessions();
+    const idx      = sessions.findIndex(s => s.id === id);
+    if (idx === -1) { json(res, 404, { error: 'session not found' }); return; }
+    sessions[idx].url    = body.url || sessions[idx].url;
+    sessions[idx].status = 'recording';
+    sessions[idx].pagesVisited = (sessions[idx].pagesVisited || 1) + 1;
+    writeSessions(sessions);
+    json(res, 200, { ok: true });
+    return;
+  }
+
   // ── POST /api/sessions/:id/end ────────────────────────────────────────────
   const endMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/end$/);
   if (method === 'POST' && endMatch) {
@@ -431,7 +448,7 @@ async function router(req, res) {
     if (idx === -1) { json(res, 404, { error: 'session not found' }); return; }
 
     sessions[idx].endTime  = Date.now();
-    sessions[idx].duration = sessions[idx].endTime - sessions[idx].startTime;
+    sessions[idx].duration = sessions[idx].endTime - sessions[idx].startTime;  // durata totale dalla prima pagina
     sessions[idx].status   = 'completed';
 
     // Metriche comportamentali dal tracker
