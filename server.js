@@ -451,6 +451,21 @@ async function router(req, res) {
     sessions[idx].duration = sessions[idx].endTime - sessions[idx].startTime;  // durata totale dalla prima pagina
     sessions[idx].status   = 'completed';
 
+    // Scarta sessioni troppo corte (< 60 secondi) — bot, crawler, uscite immediate
+    if (sessions[idx].duration < 60000) {
+      deleteEventFile(id);
+      sessions.splice(idx, 1);
+      writeSessions(sessions);
+      json(res, 200, { ok: true, discarded: 'too_short' });
+      return;
+    }
+
+    // Cap durata a 90 minuti — sessioni più lunghe sono tab abbandonati
+    const MAX_DURATION_MS = 90 * 60 * 1000;
+    if (sessions[idx].duration > MAX_DURATION_MS) {
+      sessions[idx].duration = MAX_DURATION_MS;
+    }
+
     // Metriche comportamentali dal tracker
     if (body.rageClicks    !== undefined) sessions[idx].rageClicks    = body.rageClicks;
     if (body.consoleErrors !== undefined) sessions[idx].consoleErrors = body.consoleErrors;
@@ -539,10 +554,10 @@ async function router(req, res) {
     const siteId   = parsed.searchParams.get('siteId');
     let sessions   = readSessions();
     if (siteId) sessions = sessions.filter(s => s.siteId === siteId);
-    // Ordina: prima le live, poi per relevanceScore desc, poi per data desc
+    // Mostra solo sessioni completate (no live — appaiono quando la sessione è chiusa)
+    sessions = sessions.filter(s => s.status === 'completed');
+    // Ordina: per relevanceScore desc, poi per data desc
     const sorted   = [...sessions].sort((a, b) => {
-      if (a.status === 'recording' && b.status !== 'recording') return -1;
-      if (b.status === 'recording' && a.status !== 'recording') return  1;
       if ((b.relevanceScore || 0) !== (a.relevanceScore || 0)) return (b.relevanceScore || 0) - (a.relevanceScore || 0);
       return b.startTime - a.startTime;
     });

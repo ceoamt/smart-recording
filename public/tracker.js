@@ -22,6 +22,8 @@
   var FLUSH_BATCH    = cfg.flushBatch   || 50;
   var SAMPLE_RATE    = cfg.sampleRate    !== undefined ? parseFloat(cfg.sampleRate)    : 1.0;
   var COOLDOWN_HOURS = cfg.cooldownHours !== undefined ? parseFloat(cfg.cooldownHours) : 0;
+  var MAX_EVENTS     = 8000;   // cap eventi totali per sessione
+  var IDLE_TIMEOUT   = 30 * 60 * 1000; // 30 min inattività = chiudi sessione
 
   // ── Session ID persistente per navigazioni multi-pagina (stesso tab) ────────
   var _SID_KEY      = '__sr_sid_' + SITE_ID;
@@ -236,18 +238,37 @@
     document.head.appendChild(script);
   }
 
+  // ── Idle timeout: 30 min senza attività = chiudi sessione ───────────────────
+  var lastActivityTs = Date.now();
+  function resetIdle() { lastActivityTs = Date.now(); }
+  document.addEventListener('mousemove',  resetIdle, { passive: true });
+  document.addEventListener('keydown',    resetIdle, { passive: true });
+  document.addEventListener('scroll',     resetIdle, { passive: true });
+  document.addEventListener('touchstart', resetIdle, { passive: true });
+  setInterval(function () {
+    if (sessionStarted && Date.now() - lastActivityTs > IDLE_TIMEOUT) {
+      onUnload();
+    }
+  }, 60000); // controlla ogni minuto
+
   function startRecording() {
     if (!window.rrweb) return;
     startSession();
     stopFn = rrweb.record({
       emit: function (event) {
+        if (events.length >= MAX_EVENTS) return; // cap raggiunto, smetti di registrare
         events.push(event);
         if (events.length >= FLUSH_BATCH) flush(false);
         else scheduleFlush();
       },
-      maskAllInputs:             MASK_INPUTS,
-      maskTextSelector:          MASK_INPUTS ? 'input[type="password"]' : undefined,
-      recordCrossOriginIframes:  false,
+      maskAllInputs:            MASK_INPUTS,
+      maskTextSelector:         MASK_INPUTS ? 'input[type="password"]' : undefined,
+      recordCrossOriginIframes: false,
+      sampling: {
+        mousemove: 100,   // max 1 evento ogni 100ms
+        scroll:    200,   // max 1 evento ogni 200ms
+        input:    'last', // solo valore finale di ogni campo
+      },
     });
   }
 
