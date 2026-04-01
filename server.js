@@ -108,6 +108,18 @@ function initStorage() {
   if (!fs.existsSync(EVENTS_DIR))  fs.mkdirSync(EVENTS_DIR,  { recursive: true });
   if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]', 'utf8');
   if (!fs.existsSync(CLIENTS_FILE))  fs.writeFileSync(CLIENTS_FILE,  '[]', 'utf8');
+  cleanupStaleSessions();
+}
+
+// Rimuove sessioni rimaste in stato 'recording' da più di 2h (browser chiuso senza /end)
+function cleanupStaleSessions() {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2 ore fa
+  const sessions = readSessions();
+  const stale = sessions.filter(s => s.status === 'recording' && s.startTime < cutoff);
+  if (stale.length === 0) return;
+  stale.forEach(s => deleteEventFile(s.id));
+  writeSessions(sessions.filter(s => !(s.status === 'recording' && s.startTime < cutoff)));
+  console.log(`[cleanup] Rimosse ${stale.length} sessioni stale (recording > 2h)`);
 }
 
 // ─── Helpers I/O ────────────────────────────────────────────────────────────

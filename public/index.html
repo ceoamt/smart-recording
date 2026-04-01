@@ -2314,9 +2314,9 @@
   function updateRangePreview() {
     var from = document.getElementById('range-from').value;
     var to   = document.getElementById('range-to').value;
-    if (!from && !to) { document.getElementById('delete-range-preview').textContent = ''; return; }
-    var fromTs = from ? new Date(from).getTime()                    : 0;
-    var toTs   = to   ? new Date(to).getTime() + 86399999           : Date.now();
+    if (!from || !to) { document.getElementById('delete-range-preview').textContent = ''; return; }
+    var fromTs = dateToLocalTs(from, false);
+    var toTs   = dateToLocalTs(to,   true);
     var count  = sessions.filter(function (s) {
       return s.siteId === currentClient.siteId &&
              s.startTime >= fromTs && s.startTime <= toTs;
@@ -2331,19 +2331,30 @@
   document.getElementById('range-from').addEventListener('change', updateRangePreview);
   document.getElementById('range-to').addEventListener('change',   updateRangePreview);
 
+  // Converte 'YYYY-MM-DD' in timestamp locale (inizio/fine giornata)
+  function dateToLocalTs(dateStr, endOfDay) {
+    if (!dateStr) return endOfDay ? Date.now() : 0;
+    var parts = dateStr.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    if (endOfDay) { d.setHours(23, 59, 59, 999); }
+    else          { d.setHours(0, 0, 0, 0); }
+    return d.getTime();
+  }
+
   window.confirmDeleteRange = function () {
     if (!currentClient) return;
     var from = document.getElementById('range-from').value;
     var to   = document.getElementById('range-to').value;
-    if (!from && !to) { alert('Seleziona almeno una data.'); return; }
-    var fromTs = from ? new Date(from).getTime()          : 0;
-    var toTs   = to   ? new Date(to).getTime() + 86399999 : Date.now();
-    var count  = sessions.filter(function (s) {
+    if (!from || !to) { alert('Seleziona sia la data di inizio che di fine.'); return; }
+    var fromTs = dateToLocalTs(from, false);
+    var toTs   = dateToLocalTs(to,   true);
+    if (fromTs > toTs) { alert('La data di inizio deve essere precedente alla data di fine.'); return; }
+    var count = sessions.filter(function (s) {
       return s.siteId === currentClient.siteId &&
              s.startTime >= fromTs && s.startTime <= toTs;
     }).length;
     if (count === 0) { alert('Nessuna sessione in questo intervallo.'); return; }
-    if (!confirm('Eliminare ' + count + ' sessioni di "' + currentClient.name + '"?\nQuesta azione non è reversibile.')) return;
+    if (!confirm('Eliminare ' + count + ' sessioni di "' + currentClient.name + '" dal ' + from + ' al ' + to + '?\nQuesta azione non è reversibile.')) return;
     document.getElementById('delete-range-modal').classList.add('hidden');
     apiFetch(API + '/api/sessions/by-date', {
       method:  'DELETE',
