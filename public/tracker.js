@@ -62,6 +62,7 @@
   var flushTimer     = null;
   var stopFn         = null;
   var sessionStarted = false;
+  var sessionReady   = false; // true solo dopo conferma dal server
 
   // ── Metriche comportamentali (cumulative tra pagine) ─────────────────────────
   var rageClicks    = _saved ? _saved.rageClicks    : 0;
@@ -169,24 +170,18 @@
   }
 
   // ── Flush rrweb events ──────────────────────────────────────────────────────
+  // Non invia nulla finché sessionReady=false (evita 404 su sessioni non ancora confermate)
   function flush(keepalive) {
-    if (events.length === 0) return;
+    if (!sessionReady || events.length === 0) return;
     var batch = events.splice(0);
-    fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/events', {
-      method:    'POST',
-      headers:   { 'Content-Type': 'application/json' },
-      body:      JSON.stringify({ events: batch }),
-      keepalive: !!keepalive,
-    }).then(function (r) {
-      if (r.status === 404) {
-        // Sessione non trovata → ferma tutto e pulisci per evitare loop
-        sessionStarted = false;
-        SESSION_ID = generateId();
-        sessionStorage.setItem(_SID_KEY, SESSION_ID);
-        sessionStorage.removeItem(_MET_KEY);
-        if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
-      }
-    }).catch(function () {});
+    try {
+      fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/events', {
+        method:    'POST',
+        headers:   { 'Content-Type': 'application/json' },
+        body:      JSON.stringify({ events: batch }),
+        keepalive: !!keepalive,
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   function scheduleFlush() {
@@ -213,36 +208,6 @@
     return 'Unknown';
   }
 
-  // ── Avvio sessione ──────────────────────────────────────────────────────────
-  function startSession() {
-    if (!SESSION_START_TS) SESSION_START_TS = Date.now();
-
-    if (_continuing) {
-      // Segnala nuova pagina alla sessione esistente sul server
-      // Se la sessione non esiste più (404) ricrea la sessione da zero
-      fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/page', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: window.location.href }),
-      }).then(function (r) {
-        if (r.status === 404) {
-          // Sessione non trovata (scartata o redeploy) → nuovo ID + ricrea
-          SESSION_ID = generateId();
-          sessionStorage.setItem(_SID_KEY, SESSION_ID);
-          sessionStorage.removeItem(_MET_KEY);
-          _continuing = false;
-          rageClicks = 0; consoleErrors = 0; uturns = 0;
-          pageList = [{ path: window.location.pathname + window.location.search, time: Date.now() }];
-          markers = [];
-          startFullSession();
-        }
-      }).catch(function () {});
-    } else {
-      startFullSession();
-    }
-    sessionStarted = true;
-  }
-
   function startFullSession() {
     SESSION_START_TS = Date.now();
     var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -260,6 +225,42 @@
       connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
       pixelRatio:     window.devicePixelRatio || 1,
     }, false);
+    sessionReady   = true;
+    sessionStarted = true;
+  }
+
+  // ── Avvio sessione (con verifica se è una continuazione) ────────────────────
+  function startSession() {
+    if (!SESSION_START_TS) SESSION_START_TS = Date.now();
+
+    if (_continuing) {
+      // Verifica che la sessione esista ancora sul server PRIMA di inviare eventi
+      fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/page', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ url: window.location.href }),
+      }).then(function (r) {
+        if (r.status === 404) {
+          // Sessione non trovata → nuovo ID e ricomincia
+          SESSION_ID = generateId();
+          sessionStorage.setItem(_SID_KEY, SESSION_ID);
+          sessionStorage.removeItem(_MET_KEY);
+          rageClicks = 0; consoleErrors = 0; uturns = 0;
+          pageList = [{ path: window.location.pathname + window.location.search, time: Date.now() }];
+          markers = [];
+          startFullSession(); // imposta sessionReady=true
+        } else {
+          sessionReady   = true;
+          sessionStarted = true;
+          scheduleFlush(); // ora è sicuro flusherare
+        }
+      }).catch(function () {
+        sessionReady   = true; // in caso di errore di rete, prova comunque
+        sessionStarted = true;
+      });
+    } else {
+      startFullSession();
+    }
   }
 
   // ── Carica rrweb ─────────────────────────────────────────────────────────────
