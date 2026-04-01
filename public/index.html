@@ -1237,6 +1237,7 @@
   var currentClient  = null;
   var player         = null;
   var activeFilters  = {};  // es. { deviceType: 'mobile', os: 'iOS' }
+  var currentSort    = { field: 'startTime', dir: 'desc' };
 
   var CLIENT_COLORS = ['#5b6af0','#f06b5b','#4caf7d','#f0a830','#a855f7','#06b6d4','#f43f5e','#84cc16'];
 
@@ -1554,6 +1555,48 @@
       l + (score ? ' <span style="opacity:.6;font-weight:400">' + score + '</span>' : '') + '</span>';
   }
 
+  function sortIcon(field) {
+    if (currentSort.field !== field) return '<span style="opacity:.25;font-size:10px"> ⇅</span>';
+    return currentSort.dir === 'asc'
+      ? '<span style="color:var(--accent);font-size:10px"> ↑</span>'
+      : '<span style="color:var(--accent);font-size:10px"> ↓</span>';
+  }
+
+  window.setSort = function (field) {
+    if (currentSort.field === field) {
+      currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+    } else {
+      currentSort.field = field;
+      currentSort.dir   = 'desc';
+    }
+    applyFilters();
+  };
+
+  function applySorting(list) {
+    var f   = currentSort.field;
+    var asc = currentSort.dir === 'asc';
+    return list.slice().sort(function (a, b) {
+      var va, vb;
+      if (f === 'startTime')    { va = a.startTime    || 0;  vb = b.startTime    || 0; }
+      else if (f === 'duration'){ va = a.duration     || 0;  vb = b.duration     || 0; }
+      else if (f === 'events')  { va = a.eventsCount  || 0;  vb = b.eventsCount  || 0; }
+      else if (f === 'pages')   { va = a.pagesVisited || 0;  vb = b.pagesVisited || 0; }
+      else if (f === 'country') { va = (a.country     || '').toLowerCase(); vb = (b.country || '').toLowerCase(); }
+      else if (f === 'relevance'){ va = a.relevanceScore || 0; vb = b.relevanceScore || 0; }
+      else { va = a.startTime || 0; vb = b.startTime || 0; }
+      if (va < vb) return asc ? -1 :  1;
+      if (va > vb) return asc ?  1 : -1;
+      return 0;
+    });
+  }
+
+  function thSort(field, label, title) {
+    var style = 'cursor:pointer;user-select:none;white-space:nowrap;';
+    if (currentSort.field === field) style += 'color:var(--accent);';
+    var t = title ? ' title="' + title + '"' : '';
+    return '<th style="' + style + '"' + t + ' onclick="setSort(\'' + field + '\')">' + label + sortIcon(field) + '</th>';
+  }
+
   function renderSessions(list) {
     var container = document.getElementById('sessions-list');
     if (list.length === 0) {
@@ -1566,16 +1609,16 @@
     var headerCols =
       '<th></th>' +
       '<th title="Preferito">★</th>' +
-      '<th>Rilevanza</th>' +
+      thSort('relevance', 'Rilevanza') +
       '<th>Landing</th>' +
-      '<th>Paese</th>' +
+      thSort('country', 'Paese') +
       (showSite ? '<th>Cliente</th>' : '') +
-      '<th title="Pagine visitate">Pagine</th>' +
-      '<th title="Azioni registrate">Azioni</th>' +
-      '<th>Durata</th>' +
+      thSort('pages',    'Pagine',  'Pagine visitate') +
+      thSort('events',   'Azioni',  'Azioni registrate') +
+      thSort('duration', 'Durata') +
       '<th>Dispositivo</th>' +
       '<th>Tag</th>' +
-      '<th>Data</th>' +
+      thSort('startTime', 'Data') +
       '<th></th>';
 
     var rows = list.map(function (s) {
@@ -1674,13 +1717,13 @@
   function applyFilters() {
     var q        = (document.getElementById('search-input').value || '').toLowerCase();
     var filtered = sessions.filter(function (s) {
-      if (s.status === 'recording') return false;  // nasconde sessioni LIVE ancora attive
+      if (s.status === 'recording') return false;
       if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
       if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
       if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
       return true;
     });
-    renderSessions(filtered);
+    renderSessions(applySorting(filtered));
   }
 
   // ── Filtro ricerca ─────────────────────────────────────────────────────────
