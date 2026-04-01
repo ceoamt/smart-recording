@@ -179,10 +179,11 @@
       keepalive: !!keepalive,
     }).then(function (r) {
       if (r.status === 404) {
-        // Sessione non trovata → pulisci sessionStorage per evitare loop
-        sessionStorage.removeItem(_SID_KEY);
-        sessionStorage.removeItem(_MET_KEY);
+        // Sessione non trovata → ferma tutto e pulisci per evitare loop
         sessionStarted = false;
+        SESSION_ID = generateId();
+        sessionStorage.setItem(_SID_KEY, SESSION_ID);
+        sessionStorage.removeItem(_MET_KEY);
         if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
       }
     }).catch(function () {});
@@ -225,10 +226,14 @@
         body: JSON.stringify({ url: window.location.href }),
       }).then(function (r) {
         if (r.status === 404) {
-          // Sessione non trovata (scartata o redeploy) → ricrea
-          sessionStorage.removeItem(_SID_KEY);
+          // Sessione non trovata (scartata o redeploy) → nuovo ID + ricrea
+          SESSION_ID = generateId();
+          sessionStorage.setItem(_SID_KEY, SESSION_ID);
           sessionStorage.removeItem(_MET_KEY);
           _continuing = false;
+          rageClicks = 0; consoleErrors = 0; uturns = 0;
+          pageList = [{ path: window.location.pathname + window.location.search, time: Date.now() }];
+          markers = [];
           startFullSession();
         }
       }).catch(function () {});
