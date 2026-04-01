@@ -623,6 +623,22 @@ async function router(req, res) {
     return;
   }
 
+  // ── DELETE /api/sessions/by-date (range di date per siteId) ─────────────
+  if (method === 'DELETE' && pathname === '/api/sessions/by-date') {
+    const body     = await readBody(req);
+    const siteId   = body.siteId;
+    const fromTs   = Number(body.from) || 0;
+    const toTs     = Number(body.to)   || Date.now();
+    if (!siteId) { json(res, 400, { error: 'siteId obbligatorio' }); return; }
+    const sessions = readSessions();
+    const toDelete = sessions.filter(s => s.siteId === siteId && s.startTime >= fromTs && s.startTime <= toTs);
+    const keep     = sessions.filter(s => !(s.siteId === siteId && s.startTime >= fromTs && s.startTime <= toTs));
+    toDelete.forEach(s => deleteEventFile(s.id));
+    writeSessions(keep);
+    json(res, 200, { ok: true, deleted: toDelete.length });
+    return;
+  }
+
   // ── DELETE /api/sessions/:id ──────────────────────────────────────────────
   const delMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
   if (method === 'DELETE' && delMatch) {

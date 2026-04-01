@@ -1024,6 +1024,12 @@
             </svg>
             Aggiorna
           </button>
+          <button class="player-btn player-btn-ghost" id="btn-delete-range" style="padding:4px 10px;font-size:12px;color:#f0a830;display:none;" onclick="openDeleteRangeModal()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Elimina per data
+          </button>
           <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;color:#e05252;" onclick="deleteAllSessions()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -1191,6 +1197,36 @@
           <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
         Copia codice
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete by date range modal ──────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="delete-range-modal" onclick="closeDeleteRangeModal(event)">
+  <div class="modal" style="max-width:400px;">
+    <h3 style="margin-bottom:6px;">Elimina sessioni per data</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:20px;">
+      Seleziona il range di date. Verranno eliminate tutte le sessioni del cliente selezionato comprese tra le due date.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Dal</label>
+        <input type="date" id="range-from" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Al</label>
+        <input type="date" id="range-to" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box;" />
+      </div>
+    </div>
+    <div id="delete-range-preview" style="font-size:12px;color:var(--muted);min-height:18px;margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button class="player-btn player-btn-ghost" onclick="closeDeleteRangeModal()">Annulla</button>
+      <button class="player-btn" id="btn-confirm-range-delete" style="background:#e05252;border-color:#e05252;" onclick="confirmDeleteRange()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+        </svg>
+        Elimina sessioni
       </button>
     </div>
   </div>
@@ -1464,8 +1500,10 @@
     renderClients();
     var title = currentClient ? currentClient.name : 'Sessioni';
     document.getElementById('sessions-sidebar-title').textContent = title;
+    // Mostra "Elimina per data" solo quando un cliente specifico è selezionato
+    var btnRange = document.getElementById('btn-delete-range');
+    if (btnRange) btnRange.style.display = currentClient ? 'inline-flex' : 'none';
     loadSessions();
-    // Aggiorna stats se il tab è attivo
     if (document.getElementById('tab-stats').classList.contains('active')) renderStats();
   };
 
@@ -2254,6 +2292,69 @@
         document.getElementById('rrweb-player-container').innerHTML = '';
         loadSessions();
       });
+  };
+
+  // ── Elimina per range di date ─────────────────────────────────────────────
+  window.openDeleteRangeModal = function () {
+    if (!currentClient) return;
+    // Pre-compila "Al" con oggi
+    var today = new Date().toISOString().slice(0, 10);
+    document.getElementById('range-to').value   = today;
+    document.getElementById('range-from').value = '';
+    document.getElementById('delete-range-preview').textContent = '';
+    document.getElementById('delete-range-modal').classList.remove('hidden');
+    updateRangePreview();
+  };
+
+  window.closeDeleteRangeModal = function (e) {
+    if (e && e.target !== document.getElementById('delete-range-modal')) return;
+    document.getElementById('delete-range-modal').classList.add('hidden');
+  };
+
+  function updateRangePreview() {
+    var from = document.getElementById('range-from').value;
+    var to   = document.getElementById('range-to').value;
+    if (!from && !to) { document.getElementById('delete-range-preview').textContent = ''; return; }
+    var fromTs = from ? new Date(from).getTime()                    : 0;
+    var toTs   = to   ? new Date(to).getTime() + 86399999           : Date.now();
+    var count  = sessions.filter(function (s) {
+      return s.siteId === currentClient.siteId &&
+             s.startTime >= fromTs && s.startTime <= toTs;
+    }).length;
+    var el = document.getElementById('delete-range-preview');
+    el.textContent = count > 0
+      ? count + ' sessione' + (count !== 1 ? 'i' : '') + ' verranno eliminate.'
+      : 'Nessuna sessione in questo intervallo.';
+    el.style.color = count > 0 ? '#e05252' : 'var(--muted)';
+  }
+
+  document.getElementById('range-from').addEventListener('change', updateRangePreview);
+  document.getElementById('range-to').addEventListener('change',   updateRangePreview);
+
+  window.confirmDeleteRange = function () {
+    if (!currentClient) return;
+    var from = document.getElementById('range-from').value;
+    var to   = document.getElementById('range-to').value;
+    if (!from && !to) { alert('Seleziona almeno una data.'); return; }
+    var fromTs = from ? new Date(from).getTime()          : 0;
+    var toTs   = to   ? new Date(to).getTime() + 86399999 : Date.now();
+    var count  = sessions.filter(function (s) {
+      return s.siteId === currentClient.siteId &&
+             s.startTime >= fromTs && s.startTime <= toTs;
+    }).length;
+    if (count === 0) { alert('Nessuna sessione in questo intervallo.'); return; }
+    if (!confirm('Eliminare ' + count + ' sessioni di "' + currentClient.name + '"?\nQuesta azione non è reversibile.')) return;
+    document.getElementById('delete-range-modal').classList.add('hidden');
+    apiFetch(API + '/api/sessions/by-date', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ siteId: currentClient.siteId, from: fromTs, to: toTs }),
+    }).then(function (data) {
+      loadSessions();
+      if (data && data.deleted !== undefined) {
+        alert(data.deleted + ' sessioni eliminate.');
+      }
+    });
   };
 
   // ── Segna come preferito ──────────────────────────────────────────────────
