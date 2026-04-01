@@ -249,38 +249,12 @@
       });
   }
 
-  // ── Avvio sessione (con verifica se è una continuazione) ────────────────────
+  // ── Avvio sessione ───────────────────────────────────────────────────────────
+  // Chiama sempre /start: il server aggiorna la sessione se esiste già,
+  // oppure la crea. Nessun endpoint /page separato → nessun 404.
   function startSession() {
     if (!SESSION_START_TS) SESSION_START_TS = Date.now();
-
-    if (_continuing) {
-      // Verifica che la sessione esista ancora sul server PRIMA di inviare eventi
-      fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/page', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url: window.location.href }),
-      }).then(function (r) {
-        if (r.status === 404) {
-          // Sessione non trovata → nuovo ID e ricomincia
-          SESSION_ID = generateId();
-          sessionStorage.setItem(_SID_KEY, SESSION_ID);
-          sessionStorage.removeItem(_MET_KEY);
-          rageClicks = 0; consoleErrors = 0; uturns = 0;
-          pageList = [{ path: window.location.pathname + window.location.search, time: Date.now() }];
-          markers = [];
-          startFullSession(); // imposta sessionReady=true
-        } else {
-          sessionReady   = true;
-          sessionStarted = true;
-          scheduleFlush(); // ora è sicuro flusherare
-        }
-      }).catch(function () {
-        sessionReady   = true; // in caso di errore di rete, prova comunque
-        sessionStarted = true;
-      });
-    } else {
-      startFullSession();
-    }
+    startFullSession();
   }
 
   // ── Carica rrweb ─────────────────────────────────────────────────────────────

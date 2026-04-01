@@ -333,6 +333,16 @@ async function router(req, res) {
     const sessions = readSessions();
     const id       = body.sessionId || generateId();
 
+    // Sessione già esistente → continuazione (navigazione multi-pagina stesso tab)
+    const existingIdx = sessions.findIndex(s => s.id === id);
+    if (existingIdx !== -1) {
+      sessions[existingIdx].url    = body.url || sessions[existingIdx].url;
+      sessions[existingIdx].status = 'recording';
+      writeSessions(sessions);
+      json(res, 200, { ok: true, sessionId: id, continuing: true });
+      return;
+    }
+
     const siteId  = body.siteId || 'default';
     const clients = readClients();
     const client  = clients.find(c => c.siteId === siteId);
