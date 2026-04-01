@@ -172,7 +172,20 @@
   function flush(keepalive) {
     if (events.length === 0) return;
     var batch = events.splice(0);
-    post('/api/sessions/' + SESSION_ID + '/events', { events: batch }, keepalive);
+    fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/events', {
+      method:    'POST',
+      headers:   { 'Content-Type': 'application/json' },
+      body:      JSON.stringify({ events: batch }),
+      keepalive: !!keepalive,
+    }).then(function (r) {
+      if (r.status === 404) {
+        // Sessione non trovata → pulisci sessionStorage per evitare loop
+        sessionStorage.removeItem(_SID_KEY);
+        sessionStorage.removeItem(_MET_KEY);
+        sessionStarted = false;
+        if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
+      }
+    }).catch(function () {});
   }
 
   function scheduleFlush() {
@@ -205,27 +218,43 @@
 
     if (_continuing) {
       // Segnala nuova pagina alla sessione esistente sul server
-      post('/api/sessions/' + SESSION_ID + '/page', {
-        url: window.location.href,
-      });
+      // Se la sessione non esiste più (404) ricrea la sessione da zero
+      fetch(SERVER_URL + '/api/sessions/' + SESSION_ID + '/page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: window.location.href }),
+      }).then(function (r) {
+        if (r.status === 404) {
+          // Sessione non trovata (scartata o redeploy) → ricrea
+          sessionStorage.removeItem(_SID_KEY);
+          sessionStorage.removeItem(_MET_KEY);
+          _continuing = false;
+          startFullSession();
+        }
+      }).catch(function () {});
     } else {
-      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      post('/api/sessions/start', {
-        sessionId:      SESSION_ID,
-        siteId:         SITE_ID,
-        url:            window.location.href,
-        referrer:       document.referrer || '',
-        userAgent:      navigator.userAgent,
-        viewport:       { width: window.innerWidth, height: window.innerHeight },
-        deviceType:     getDeviceType(),
-        os:             getOS(),
-        language:       navigator.language || '',
-        timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
-        connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
-        pixelRatio:     window.devicePixelRatio || 1,
-      }, false);
+      startFullSession();
     }
     sessionStarted = true;
+  }
+
+  function startFullSession() {
+    SESSION_START_TS = Date.now();
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    post('/api/sessions/start', {
+      sessionId:      SESSION_ID,
+      siteId:         SITE_ID,
+      url:            window.location.href,
+      referrer:       document.referrer || '',
+      userAgent:      navigator.userAgent,
+      viewport:       { width: window.innerWidth, height: window.innerHeight },
+      deviceType:     getDeviceType(),
+      os:             getOS(),
+      language:       navigator.language || '',
+      timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+      connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
+      pixelRatio:     window.devicePixelRatio || 1,
+    }, false);
   }
 
   // ── Carica rrweb ─────────────────────────────────────────────────────────────
