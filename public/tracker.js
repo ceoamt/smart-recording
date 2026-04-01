@@ -230,14 +230,15 @@
       }),
     }).then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data && data.sampled_out) {
-          // Server ha scartato la sessione (sampleRate) → ferma tutto
+        // Se il server ha rifiutato (qualsiasi motivo: sampled_out, unknown_site, limit_reached)
+        // → ferma tutto, non inviare eventi (evita 404 su /events)
+        if (!data || data.ok === false) {
           if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
           sessionStorage.removeItem(_SID_KEY);
           sessionStorage.removeItem(_MET_KEY);
           return;
         }
-        // Sessione creata → ora è sicuro inviare eventi
+        // Sessione creata o aggiornata → ora è sicuro inviare eventi
         sessionReady   = true;
         sessionStarted = true;
         scheduleFlush();
