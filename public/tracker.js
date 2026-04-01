@@ -211,22 +211,42 @@
   function startFullSession() {
     SESSION_START_TS = Date.now();
     var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    post('/api/sessions/start', {
-      sessionId:      SESSION_ID,
-      siteId:         SITE_ID,
-      url:            window.location.href,
-      referrer:       document.referrer || '',
-      userAgent:      navigator.userAgent,
-      viewport:       { width: window.innerWidth, height: window.innerHeight },
-      deviceType:     getDeviceType(),
-      os:             getOS(),
-      language:       navigator.language || '',
-      timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
-      connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
-      pixelRatio:     window.devicePixelRatio || 1,
-    }, false);
-    sessionReady   = true;
-    sessionStarted = true;
+    fetch(SERVER_URL + '/api/sessions/start', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        sessionId:      SESSION_ID,
+        siteId:         SITE_ID,
+        url:            window.location.href,
+        referrer:       document.referrer || '',
+        userAgent:      navigator.userAgent,
+        viewport:       { width: window.innerWidth, height: window.innerHeight },
+        deviceType:     getDeviceType(),
+        os:             getOS(),
+        language:       navigator.language || '',
+        timezone:       Intl ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+        connectionType: conn ? (conn.effectiveType || conn.type || '') : '',
+        pixelRatio:     window.devicePixelRatio || 1,
+      }),
+    }).then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.sampled_out) {
+          // Server ha scartato la sessione (sampleRate) → ferma tutto
+          if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
+          sessionStorage.removeItem(_SID_KEY);
+          sessionStorage.removeItem(_MET_KEY);
+          return;
+        }
+        // Sessione creata → ora è sicuro inviare eventi
+        sessionReady   = true;
+        sessionStarted = true;
+        scheduleFlush();
+      })
+      .catch(function () {
+        // Errore di rete → prova comunque
+        sessionReady   = true;
+        sessionStarted = true;
+      });
   }
 
   // ── Avvio sessione (con verifica se è una continuazione) ────────────────────
