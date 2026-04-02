@@ -1787,11 +1787,15 @@
     currentSession = sessions.find(function (s) { return s.id === id; });
     if (!currentSession) return;
 
-    // Aggiorna sidebar
-    renderSessions(sessions.filter(function (s) {
+    // Marca come vista appena si apre la sessione
+    markViewed(id);
+
+    // Aggiorna sidebar (il pulsante diventa Re-Play subito)
+    renderSessions(applySorting(sessions.filter(function (s) {
       var q = document.getElementById('search-input').value.toLowerCase();
+      if (s.status === 'recording') return false;
       return !q || s.url.toLowerCase().includes(q);
-    }));
+    })));
 
     // Nascondi sidebar, mostra player
     document.querySelector('.sidebar').classList.add('hidden');
@@ -1834,6 +1838,9 @@
     if (player) { try { player.pause(); } catch(e){} player = null; }
     clearInterval(replayState.timer);
     document.getElementById('rrweb-player-container').innerHTML = '';
+
+    // Avvia il replay automaticamente
+    setTimeout(function () { startReplay(); }, 50);
   };
 
   // ── Avvia replay ───────────────────────────────────────────────────────────
@@ -2471,9 +2478,7 @@
 
   // ── Play diretto da tabella ───────────────────────────────────────────────
   window.playSession = function (id) {
-    markViewed(id);
-    selectSession(id);
-    setTimeout(function () { startReplay(); }, 50);
+    selectSession(id); // markViewed + autoplay già dentro selectSession
   };
 
   // ── Modal snippet ──────────────────────────────────────────────────────────
