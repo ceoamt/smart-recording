@@ -145,7 +145,14 @@
     consoleErrors++;
     try {
       var parts = Array.prototype.slice.call(arguments).map(function(a) {
-        if (a instanceof Error) return a.message + (a.stack ? '\n' + a.stack.split('\n')[1] : '');
+        if (a instanceof Error)    return a.message + (a.stack ? ' (' + a.stack.split('\n')[1].trim() + ')' : '');
+        if (typeof a === 'object' && a !== null) {
+          // Response object (fetch API)
+          if (typeof a.status === 'number' && typeof a.url === 'string')
+            return 'HTTP ' + a.status + ' ' + (a.statusText || '') + ' ' + a.url;
+          // Oggetti generici → JSON
+          try { return JSON.stringify(a).substring(0, 200); } catch(e2) { return Object.prototype.toString.call(a); }
+        }
         return String(a);
       });
       addMarker('console_error', { source: 'console.error', msg: parts.join(' ').substring(0, 300) });
