@@ -144,17 +144,33 @@
     _origError.apply(console, arguments);
     consoleErrors++;
     try {
-      var msg = Array.prototype.slice.call(arguments).join(' ').substring(0, 200);
-      addMarker('console_error', { msg: msg });
+      var parts = Array.prototype.slice.call(arguments).map(function(a) {
+        if (a instanceof Error) return a.message + (a.stack ? '\n' + a.stack.split('\n')[1] : '');
+        return String(a);
+      });
+      addMarker('console_error', { source: 'console.error', msg: parts.join(' ').substring(0, 300) });
     } catch (e) {}
   };
   window.addEventListener('error', function (e) {
     consoleErrors++;
-    addMarker('console_error', { msg: (e.message || '').substring(0, 200) });
+    try {
+      var file = e.filename ? e.filename.replace(/^.*\//, '') : '';  // solo nome file
+      var loc  = file ? file + (e.lineno ? ':' + e.lineno : '') : '';
+      addMarker('console_error', {
+        source: 'uncaught',
+        msg:    (e.message || 'Errore JS').substring(0, 300),
+        loc:    loc,
+      });
+    } catch (ex) {}
   });
   window.addEventListener('unhandledrejection', function (e) {
     consoleErrors++;
-    addMarker('console_error', { msg: 'Unhandled Promise rejection' });
+    try {
+      var reason = '';
+      if (e.reason instanceof Error) reason = e.reason.message;
+      else if (e.reason)             reason = String(e.reason).substring(0, 200);
+      addMarker('console_error', { source: 'promise', msg: reason || 'Unhandled Promise rejection' });
+    } catch (ex) {}
   });
 
   // ── Fetch helper ────────────────────────────────────────────────────────────

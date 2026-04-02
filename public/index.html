@@ -1835,12 +1835,20 @@
     if (errMarkers.length > 0) {
       errorsRow.style.display = 'flex';
       errorsList.innerHTML = errMarkers.map(function (m) {
-        var label = (m.msg || 'Errore JS').substring(0, 80) + (m.msg && m.msg.length > 80 ? '…' : '');
-        var ts    = fmtTime(m.t || 0);
+        var ts     = fmtTime(m.t || 0);
+        var src    = m.source === 'console.error' ? 'console.error'
+                   : m.source === 'promise'       ? 'Promise'
+                   : m.source === 'uncaught'      ? 'Uncaught'
+                   : 'JS';
+        var msg    = (m.msg || 'Errore JS').substring(0, 120) + ((m.msg || '').length > 120 ? '…' : '');
+        var loc    = m.loc ? ' · ' + m.loc : '';
+        var srcBadge = '<span style="opacity:.5;font-size:10px;margin-right:4px;text-transform:uppercase;letter-spacing:.4px">[' + src + ']</span>';
+        var locBadge = loc ? '<span style="opacity:.45;font-size:10px;margin-left:4px;">' + escHtml(loc) + '</span>' : '';
         return '<button onclick="seekReplay(' + (m.t || 0) + ')" title="' + escHtml(m.msg || '') + '" ' +
-          'style="background:rgba(240,168,48,.12);border:1px solid rgba(240,168,48,.3);border-radius:4px;' +
-          'color:#f0a830;font-size:11px;padding:2px 7px;cursor:pointer;white-space:nowrap;">' +
-          '<span style="opacity:.6;margin-right:4px;">' + ts + '</span>' + escHtml(label) +
+          'style="background:rgba(240,168,48,.1);border:1px solid rgba(240,168,48,.25);border-radius:4px;' +
+          'color:#f0a830;font-size:11px;padding:3px 8px;cursor:pointer;text-align:left;max-width:100%;">' +
+          '<span style="opacity:.55;margin-right:5px;">' + ts + '</span>' +
+          srcBadge + escHtml(msg) + locBadge +
           '</button>';
       }).join('');
     } else {
