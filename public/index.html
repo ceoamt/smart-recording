@@ -1096,6 +1096,11 @@
         <button class="tag-picker-btn" onclick="quickTag('🏆 Conversion')" id="tpick-5">🏆 Conversion</button>
         <input class="session-note-input" id="session-note-input" placeholder="Note…" onblur="saveNote(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="margin-left:auto;" />
       </div>
+      <!-- Riga 3: errori JS (visibile solo se presenti) -->
+      <div class="player-toolbar-row" id="js-errors-row" style="display:none;flex-wrap:wrap;gap:6px;align-items:flex-start;">
+        <span style="font-size:11px;color:#f0a830;font-weight:600;white-space:nowrap;">⚠ Errori JS</span>
+        <div id="js-errors-list" style="display:flex;flex-wrap:wrap;gap:4px;flex:1;"></div>
+      </div>
     </div>
 
     <!-- Stato iniziale -->
@@ -1823,6 +1828,26 @@
       (s.uturns      ? '<span style="color:#a855f7">↩ ' + s.uturns + ' u-turn</span>' : '') +
       '<span>' + (s.eventsCount || 0) + ' eventi</span>';
 
+    // Errori JS — mostra lista con timestamp cliccabili
+    var errorsRow  = document.getElementById('js-errors-row');
+    var errorsList = document.getElementById('js-errors-list');
+    var errMarkers = (s.markers || []).filter(function (m) { return m.type === 'console_error'; });
+    if (errMarkers.length > 0) {
+      errorsRow.style.display = 'flex';
+      errorsList.innerHTML = errMarkers.map(function (m) {
+        var label = (m.msg || 'Errore JS').substring(0, 80) + (m.msg && m.msg.length > 80 ? '…' : '');
+        var ts    = fmtTime(m.t || 0);
+        return '<button onclick="seekReplay(' + (m.t || 0) + ')" title="' + escHtml(m.msg || '') + '" ' +
+          'style="background:rgba(240,168,48,.12);border:1px solid rgba(240,168,48,.3);border-radius:4px;' +
+          'color:#f0a830;font-size:11px;padding:2px 7px;cursor:pointer;white-space:nowrap;">' +
+          '<span style="opacity:.6;margin-right:4px;">' + ts + '</span>' + escHtml(label) +
+          '</button>';
+      }).join('');
+    } else {
+      errorsRow.style.display = 'none';
+      errorsList.innerHTML = '';
+    }
+
     // Populate tag picker
     var sessionTags = currentSession.tags || [];
     TAGS_LIST.forEach(function (t, i) {
@@ -2000,6 +2025,11 @@
     player.play(ms);
     var btn = document.getElementById('btn-toggle-play');
     if (btn) btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pausa';
+  };
+
+  window.seekReplay = function (ms) {
+    if (!player) { startReplay(ms); return; }
+    try { player.goto(ms); player.play(); replayState.playing = true; replayState.current = ms; } catch(e) {}
   };
 
   window.togglePlayPause = function () {
