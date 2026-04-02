@@ -403,6 +403,7 @@
       white-space: nowrap;
     }
     .btn-play-row:hover { opacity: .8; }
+    .btn-play-row.replay { background: var(--muted); }
 
     /* Tag pills */
     .tag-pill {
@@ -1275,6 +1276,17 @@
   var activeFilters  = {};  // es. { deviceType: 'mobile', os: 'iOS' }
   var currentSort    = { field: 'startTime', dir: 'desc' };
 
+  // IDs sessioni già viste (persistiti in localStorage)
+  var viewedSessions = (function () {
+    try { return new Set(JSON.parse(localStorage.getItem('sr_viewed') || '[]')); }
+    catch (e) { return new Set(); }
+  })();
+
+  function markViewed(id) {
+    viewedSessions.add(id);
+    try { localStorage.setItem('sr_viewed', JSON.stringify(Array.from(viewedSessions))); } catch (e) {}
+  }
+
   var CLIENT_COLORS = ['#5b6af0','#f06b5b','#4caf7d','#f0a830','#a855f7','#06b6d4','#f43f5e','#84cc16'];
 
   // ── Icone SVG ──────────────────────────────────────────────────────────────
@@ -1678,8 +1690,9 @@
 
       return '<tr' + (isActive ? ' class="active"' : '') + ' onclick="selectSession(\'' + s.id + '\')">' +
         '<td onclick="event.stopPropagation()" style="width:60px;padding:5px 6px;">' +
-          '<button class="btn-play-row" onclick="playSession(\'' + s.id + '\')">' +
-            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play' +
+          '<button class="btn-play-row' + (viewedSessions.has(s.id) ? ' replay' : '') + '" onclick="playSession(\'' + s.id + '\')">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> ' +
+            (viewedSessions.has(s.id) ? 'Re-Play' : 'Play') +
           '</button>' +
         '</td>' +
         '<td onclick="event.stopPropagation()" style="width:28px;padding:5px 4px;">' +
@@ -2458,8 +2471,8 @@
 
   // ── Play diretto da tabella ───────────────────────────────────────────────
   window.playSession = function (id) {
+    markViewed(id);
     selectSession(id);
-    // Piccolo delay per dare il tempo al DOM di aggiornarsi
     setTimeout(function () { startReplay(); }, 50);
   };
 
