@@ -427,8 +427,7 @@ async function router(req, res) {
     json(res, 200, { ok: true, sessionId: id });
 
     // Geo lookup asincrono (non blocca la risposta)
-    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-    geoLookup(clientIp).then(geo => {
+    geoLookup(cleanIp).then(geo => {
       if (!geo.country) return;
       const ss = readSessions();
       const ix = ss.findIndex(s => s.id === id);
