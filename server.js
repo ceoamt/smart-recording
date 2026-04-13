@@ -29,6 +29,11 @@ const PUB_DIR      = path.join(__dirname, 'public');
 const TTL_DAYS     = parseInt(process.env.SESSION_TTL_DAYS || '30', 10);
 const TTL_MS       = TTL_DAYS * 24 * 60 * 60 * 1000;
 
+// ─── IP da escludere dal tracking (uso interno) ──────────────────────────────
+const BLOCKED_IPS  = new Set(
+  (process.env.BLOCKED_IPS || '93.42.206.228').split(',').map(s => s.trim()).filter(Boolean)
+);
+
 // ─── Autenticazione stateless (HMAC — sopravvive ai restart/redeploy) ────────
 const AUTH_USER   = process.env.AUTH_USER || 'amtitalia';
 const AUTH_PASS   = process.env.AUTH_PASS || 'smartrec2026?!?!';
@@ -341,6 +346,13 @@ async function router(req, res) {
 
   // ── POST /api/sessions/start ──────────────────────────────────────────────
   if (method === 'POST' && pathname === '/api/sessions/start') {
+    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '';
+    const cleanIp  = clientIp.replace(/^::ffff:/, '');
+    if (BLOCKED_IPS.has(cleanIp)) {
+      json(res, 200, { ok: false, reason: 'blocked_ip' });
+      return;
+    }
+
     const body     = await readBody(req);
     const sessions = readSessions();
     const id       = body.sessionId || generateId();
