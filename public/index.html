@@ -616,10 +616,18 @@
     .player-wrap {
       flex: 1;
       display: flex;
-      align-items: flex-start;
-      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #player-scroll-area {
+      flex: 1;
       overflow: auto;
       padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
     }
 
     #rrweb-player-container {
@@ -1135,13 +1143,13 @@
       <p>Seleziona una sessione dalla lista per avviare il replay.</p>
     </div>
 
-    <!-- Container rrweb-player -->
+    <!-- Container rrweb-player + barra controlli sticky in fondo -->
     <div class="player-wrap" id="player-wrap" style="display:none;">
-      <div id="rrweb-player-container"></div>
+      <div id="player-scroll-area">
+        <div id="rrweb-player-container"></div>
+      </div>
+      <div id="replay-controls-bar" style="display:none;"></div>
     </div>
-
-    <!-- Barra controlli replay — sempre visibile in fondo -->
-    <div id="replay-controls-bar" style="display:none;"></div>
 
   </main>
 </div>
@@ -2142,8 +2150,8 @@
           var vp   = currentSession.viewport || {};
           var vpW  = vp.width  || 1280;
           var vpH  = vp.height || 800;
-          var playerArea = document.getElementById('player-area');
-          var areaW = playerArea.offsetWidth  || 1000;
+          var scrollArea = document.getElementById('player-scroll-area');
+          var areaW = scrollArea.offsetWidth  || 1000;
           var maxW  = areaW - 48; // 24px padding sx + dx
           // Scala sempre per riempire la larghezza; player-wrap scrolla verticalmente
           var scale  = maxW / vpW;
