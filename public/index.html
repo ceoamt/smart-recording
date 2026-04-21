@@ -2095,7 +2095,7 @@
           var areaH = playerArea.offsetHeight || 600;
           var maxW  = areaW - 40;
           var maxH  = areaH - 80; // spazio per i controlli
-          var scale = Math.min(1, maxW / vpW, maxH / vpH);
+          var scale = Math.min(maxW / vpW, maxH / vpH);
           var frameW = Math.round(vpW * scale);
           var frameH = Math.round(vpH * scale);
 
