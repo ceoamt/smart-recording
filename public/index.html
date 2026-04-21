@@ -1910,14 +1910,14 @@
   window.setReplayZoom = function (factor) {
     replayZoom = factor;
     localStorage.setItem('sr_replay_zoom', String(factor));
-    var frameEl = document.querySelector('.replay-frame');
-    var innerEl = frameEl ? frameEl.querySelector('div') : null;
+    var frameEl = document.getElementById('replay-frame-el');
+    var innerEl = document.getElementById('replay-inner-el');
     if (!frameEl || !innerEl) return;
-    var s = replayBaseScale * factor;
+    var s  = replayBaseScale * factor;
     var fw = Math.round(replayVpW * s);
     var fh = Math.round(replayVpH * s);
-    frameEl.style.width  = fw + 'px';
-    frameEl.style.height = fh + 'px';
+    frameEl.style.width     = fw + 'px';
+    frameEl.style.height    = fh + 'px';
     innerEl.style.transform = 'scale(' + s + ')';
     // Aggiorna bottoni zoom
     [0.5, 0.75, 1].forEach(function (z) {
@@ -2176,6 +2176,7 @@
 
           // Outer container al size scalato, overflow hidden
           var frameEl = document.createElement('div');
+          frameEl.id        = 'replay-frame-el';
           frameEl.className = 'replay-frame';
           frameEl.style.width    = frameW + 'px';
           frameEl.style.height   = frameH + 'px';
@@ -2191,6 +2192,7 @@
 
           // Inner wrapper alla risoluzione originale, scalato via CSS
           var innerEl = document.createElement('div');
+          innerEl.id                    = 'replay-inner-el';
           innerEl.style.width           = vpW + 'px';
           innerEl.style.height          = vpH + 'px';
           innerEl.style.transform       = 'scale(' + activeScale + ')';
