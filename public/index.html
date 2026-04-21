@@ -616,7 +616,7 @@
     .player-wrap {
       flex: 1;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       overflow: auto;
       padding: 20px;
@@ -635,14 +635,16 @@
       overflow: hidden;
       position: relative;
     }
+    #replay-controls-bar {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
     .replay-controls {
       display: flex;
       align-items: center;
       gap: 10px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 14px;
+      padding: 10px 16px;
     }
     .replay-progress {
       flex: 1;
@@ -1137,6 +1139,9 @@
     <div class="player-wrap" id="player-wrap" style="display:none;">
       <div id="rrweb-player-container"></div>
     </div>
+
+    <!-- Barra controlli replay — sempre visibile in fondo -->
+    <div id="replay-controls-bar" style="display:none;"></div>
 
   </main>
 </div>
@@ -1829,6 +1834,7 @@
     document.getElementById('no-selection').style.display  = 'none';
     document.getElementById('player-toolbar').style.display = 'flex';
     document.getElementById('player-wrap').style.display    = 'none';
+            document.getElementById('replay-controls-bar').style.display = 'none';
 
     document.getElementById('player-url').textContent = currentSession.url;
     var s = currentSession;
@@ -2226,7 +2232,11 @@
               '<button id="zoom-btn-75"  class="zoom-btn' + (replayZoom === 0.75 ? ' active' : '') + '" onclick="setReplayZoom(0.75)" title="Zoom 75%">75%</button>'  +
               '<button id="zoom-btn-100" class="zoom-btn' + (replayZoom === 1    ? ' active' : '') + '" onclick="setReplayZoom(1)"    title="Zoom 100%">100%</button>' +
             '</div>';
-          container.appendChild(ctrlEl);
+          // Barra controlli: aggiunta fuori da player-wrap, in fondo a player-area
+          var controlsBar = document.getElementById('replay-controls-bar');
+          controlsBar.innerHTML = '';
+          controlsBar.appendChild(ctrlEl);
+          controlsBar.style.display = 'block';
 
           // Istanzia rrweb.Replayer
           player = new rrweb.Replayer(events, {
@@ -2336,6 +2346,7 @@
     document.getElementById('no-selection').style.display  = 'flex';
     document.getElementById('player-toolbar').style.display = 'none';
     document.getElementById('player-wrap').style.display    = 'none';
+            document.getElementById('replay-controls-bar').style.display = 'none';
     if (player) { try { player.pause(); } catch(e){} player = null; }
     clearInterval(replayState.timer);
     document.getElementById('rrweb-player-container').innerHTML = '';
@@ -2371,6 +2382,7 @@
             document.getElementById('no-selection').style.display  = 'flex';
             document.getElementById('player-toolbar').style.display = 'none';
             document.getElementById('player-wrap').style.display    = 'none';
+            document.getElementById('replay-controls-bar').style.display = 'none';
             if (player) { try { player.pause(); } catch(e){} player = null; }
             clearInterval(replayState.timer);
             document.getElementById('rrweb-player-container').innerHTML = '';
@@ -2407,6 +2419,7 @@
         document.getElementById('no-selection').style.display  = 'flex';
         document.getElementById('player-toolbar').style.display = 'none';
         document.getElementById('player-wrap').style.display    = 'none';
+            document.getElementById('replay-controls-bar').style.display = 'none';
         if (player) { try { player.pause(); } catch(e){} player = null; }
         clearInterval(replayState.timer);
         document.getElementById('rrweb-player-container').innerHTML = '';
