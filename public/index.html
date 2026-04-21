@@ -2119,6 +2119,7 @@
       .then(function (events) {
         btn.disabled = false;
         btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+        console.log('[SR] events ricevuti:', events ? events.length : 0);
 
 
         if (!events || events.length === 0) {
@@ -2137,12 +2138,14 @@
 
         // Aspetta reflow per leggere offsetWidth corretto
         setTimeout(function () {
+          try {
           var vp   = currentSession.viewport || {};
           var vpW  = vp.width  || 1280;
           var vpH  = vp.height || 800;
           var playerArea = document.getElementById('player-area');
           var areaW = playerArea.offsetWidth  || 1000;
           var maxW  = areaW - 48; // 24px padding sx + dx
+          console.log('[SR] init replay vpW=' + vpW + ' areaW=' + areaW + ' zoom=' + replayZoom);
           // Scala sempre per riempire la larghezza; player-wrap scrolla verticalmente
           var scale  = maxW / vpW;
           var frameW = Math.round(vpW * scale);  // ≈ maxW
@@ -2324,6 +2327,8 @@
             var tb = document.getElementById('btn-toggle-play');
             if (tb) tb.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Replay';
           });
+          console.log('[SR] player.play() chiamato ok');
+          } catch(e) { console.error('[SR] ERRORE init replay:', e); alert('Errore replay: ' + e.message); }
         }, 0); // fine setTimeout reflow
       })
       .catch(function (err) {
