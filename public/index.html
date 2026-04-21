@@ -528,6 +528,7 @@
       flex-direction: column;
       background: var(--bg);
       overflow: hidden;
+      position: relative;
     }
 
     .sidebar.hidden { display: none; }
@@ -616,18 +617,11 @@
     .player-wrap {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    #player-scroll-area {
-      flex: 1;
+      align-items: flex-start;
+      justify-content: center;
       overflow: auto;
       padding: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      padding-bottom: 64px; /* spazio per la barra controlli */
     }
 
     #rrweb-player-container {
@@ -644,9 +638,13 @@
       position: relative;
     }
     #replay-controls-bar {
-      flex-shrink: 0;
-      border-top: 1px solid var(--border);
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
       background: var(--surface);
+      border-top: 1px solid var(--border);
     }
     .replay-controls {
       display: flex;
@@ -1143,13 +1141,13 @@
       <p>Seleziona una sessione dalla lista per avviare il replay.</p>
     </div>
 
-    <!-- Container rrweb-player + barra controlli sticky in fondo -->
+    <!-- Container rrweb-player -->
     <div class="player-wrap" id="player-wrap" style="display:none;">
-      <div id="player-scroll-area">
-        <div id="rrweb-player-container"></div>
-      </div>
-      <div id="replay-controls-bar" style="display:none;"></div>
+      <div id="rrweb-player-container"></div>
     </div>
+
+    <!-- Barra controlli replay — absolute in fondo a player-area -->
+    <div id="replay-controls-bar" style="display:none;"></div>
 
   </main>
 </div>
@@ -2150,8 +2148,8 @@
           var vp   = currentSession.viewport || {};
           var vpW  = vp.width  || 1280;
           var vpH  = vp.height || 800;
-          var scrollArea = document.getElementById('player-scroll-area');
-          var areaW = scrollArea.offsetWidth  || 1000;
+          var playerArea = document.getElementById('player-area');
+          var areaW = playerArea.offsetWidth  || 1000;
           var maxW  = areaW - 48; // 24px padding sx + dx
           // Scala sempre per riempire la larghezza; player-wrap scrolla verticalmente
           var scale  = maxW / vpW;
