@@ -712,6 +712,28 @@
       outline: none;
     }
 
+    .replay-zoom-btns {
+      display: flex;
+      gap: 2px;
+      margin-left: 4px;
+    }
+    .zoom-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .zoom-btn:hover { background: var(--surface2); color: var(--text); }
+    .zoom-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
     .no-selection {
       flex: 1;
       display: flex;
@@ -1879,6 +1901,31 @@
   var replayState   = { playing: false, duration: 0, current: 0, timer: null };
   var sessionMarkers = [];  // markers della sessione in replay (accessibile da quickTag)
 
+  // ── Zoom replay ──────────────────────────────────────────────────────────────
+  var replayZoom     = parseFloat(localStorage.getItem('sr_replay_zoom') || '1');
+  var replayBaseScale = 1;  // scala al 100% (riempie la larghezza)
+  var replayVpW      = 1280;
+  var replayVpH      = 800;
+
+  window.setReplayZoom = function (factor) {
+    replayZoom = factor;
+    localStorage.setItem('sr_replay_zoom', String(factor));
+    var frameEl = document.querySelector('.replay-frame');
+    var innerEl = frameEl ? frameEl.querySelector('div') : null;
+    if (!frameEl || !innerEl) return;
+    var s = replayBaseScale * factor;
+    var fw = Math.round(replayVpW * s);
+    var fh = Math.round(replayVpH * s);
+    frameEl.style.width  = fw + 'px';
+    frameEl.style.height = fh + 'px';
+    innerEl.style.transform = 'scale(' + s + ')';
+    // Aggiorna bottoni zoom
+    [0.5, 0.75, 1].forEach(function (z) {
+      var btn = document.getElementById('zoom-btn-' + (z * 100));
+      if (btn) btn.classList.toggle('active', z === factor);
+    });
+  };
+
   function fmtTime(ms) {
     var s = Math.floor((ms || 0) / 1000);
     var m = Math.floor(s / 60); s = s % 60;
@@ -2117,6 +2164,16 @@
             }
           });
 
+          // Salva base scale per zoom dinamico
+          replayBaseScale = scale;
+          replayVpW       = vpW;
+          replayVpH       = vpH;
+
+          // Applica zoom salvato
+          var activeScale = scale * replayZoom;
+          var frameW = Math.round(vpW * activeScale);
+          var frameH = Math.round(vpH * activeScale);
+
           // Outer container al size scalato, overflow hidden
           var frameEl = document.createElement('div');
           frameEl.className = 'replay-frame';
@@ -2136,7 +2193,7 @@
           var innerEl = document.createElement('div');
           innerEl.style.width           = vpW + 'px';
           innerEl.style.height          = vpH + 'px';
-          innerEl.style.transform       = 'scale(' + scale + ')';
+          innerEl.style.transform       = 'scale(' + activeScale + ')';
           innerEl.style.transformOrigin = 'top left';
           innerEl.style.position        = 'absolute';
           innerEl.style.top             = '0';
@@ -2161,7 +2218,12 @@
               '<option value="1" selected>1×</option>' +
               '<option value="2">2×</option>' +
               '<option value="4">4×</option>' +
-            '</select>';
+            '</select>' +
+            '<div class="replay-zoom-btns">' +
+              '<button id="zoom-btn-50"  class="zoom-btn' + (replayZoom === 0.5  ? ' active' : '') + '" onclick="setReplayZoom(0.5)"  title="Zoom 50%">50%</button>'  +
+              '<button id="zoom-btn-75"  class="zoom-btn' + (replayZoom === 0.75 ? ' active' : '') + '" onclick="setReplayZoom(0.75)" title="Zoom 75%">75%</button>'  +
+              '<button id="zoom-btn-100" class="zoom-btn' + (replayZoom === 1    ? ' active' : '') + '" onclick="setReplayZoom(1)"    title="Zoom 100%">100%</button>' +
+            '</div>';
           container.appendChild(ctrlEl);
 
           // Istanzia rrweb.Replayer
