@@ -624,7 +624,6 @@
 
     #rrweb-player-container {
       width: 100%;
-      max-width: 1100px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -2092,11 +2091,10 @@
           var vpH  = vp.height || 800;
           var playerArea = document.getElementById('player-area');
           var areaW = playerArea.offsetWidth  || 1000;
-          var areaH = playerArea.offsetHeight || 600;
-          var maxW  = areaW - 40;
-          var maxH  = areaH - 80; // spazio per i controlli
-          var scale = Math.min(maxW / vpW, maxH / vpH);
-          var frameW = Math.round(vpW * scale);
+          var maxW  = areaW - 48; // 24px padding sx + dx
+          // Scala sempre per riempire la larghezza; player-wrap scrolla verticalmente
+          var scale  = maxW / vpW;
+          var frameW = Math.round(vpW * scale);  // ≈ maxW
           var frameH = Math.round(vpH * scale);
 
           // ── Estrai click/scroll/input dagli eventi rrweb ─────────────────────
