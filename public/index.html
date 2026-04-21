@@ -1833,8 +1833,8 @@
     document.getElementById('player-area').style.display    = 'flex';
     document.getElementById('no-selection').style.display  = 'none';
     document.getElementById('player-toolbar').style.display = 'flex';
-    document.getElementById('player-wrap').style.display    = 'none';
-            document.getElementById('replay-controls-bar').style.display = 'none';
+    document.getElementById('player-wrap').style.display         = 'none';
+    document.getElementById('replay-controls-bar').style.display = 'none';
 
     document.getElementById('player-url').textContent = currentSession.url;
     var s = currentSession;
@@ -2271,7 +2271,7 @@
           renderReplayMarkers(sessionMarkers, replayState.duration);
 
           // Salva dati nel replayState per il timer
-          replayState.scale        = scale;
+          replayState.scale        = activeScale;  // scala effettiva (base × zoom)
           replayState.clickOverlay = clickOverlay;
           replayState.rrClicks     = rrClicks;
           replayState.clickIdx     = 0;
@@ -2345,8 +2345,8 @@
     document.getElementById('player-area').style.display    = 'none';
     document.getElementById('no-selection').style.display  = 'flex';
     document.getElementById('player-toolbar').style.display = 'none';
-    document.getElementById('player-wrap').style.display    = 'none';
-            document.getElementById('replay-controls-bar').style.display = 'none';
+    document.getElementById('player-wrap').style.display         = 'none';
+    document.getElementById('replay-controls-bar').style.display = 'none';
     if (player) { try { player.pause(); } catch(e){} player = null; }
     clearInterval(replayState.timer);
     document.getElementById('rrweb-player-container').innerHTML = '';
@@ -2418,8 +2418,8 @@
         document.getElementById('player-area').style.display    = 'none';
         document.getElementById('no-selection').style.display  = 'flex';
         document.getElementById('player-toolbar').style.display = 'none';
-        document.getElementById('player-wrap').style.display    = 'none';
-            document.getElementById('replay-controls-bar').style.display = 'none';
+        document.getElementById('player-wrap').style.display         = 'none';
+        document.getElementById('replay-controls-bar').style.display = 'none';
         if (player) { try { player.pause(); } catch(e){} player = null; }
         clearInterval(replayState.timer);
         document.getElementById('rrweb-player-container').innerHTML = '';
