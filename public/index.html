@@ -1268,7 +1268,7 @@
 <div class="share-toast" id="share-toast">🔗 Link copiato negli appunti!</div>
 
 <!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/rrweb@1/dist/rrweb.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/rrweb@1/dist/rrweb.min.js"></script>
 
 <script>
 (function () {
@@ -2602,7 +2602,7 @@
       '    serverUrl: \'' + origin + '\',\n' +
       '  };\n' +
       '<\/script>\n' +
-      '<script src="' + origin + '/tracker.js"><\/script>';
+      '<script async src="' + origin + '/tracker.js"><\/script>';
     document.getElementById('snippet-code').textContent = snippetText;
     document.getElementById('snippet-modal').classList.remove('hidden');
   };
