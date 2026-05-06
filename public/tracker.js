@@ -11,10 +11,8 @@
  *   SmartRecording.stop()
  *   SmartRecording.getSessionId()
  */
-(function () {
+try { (function () {
   'use strict';
-
-  try {
 
   var cfg            = window.SmartRecordingConfig || {};
   var SERVER_URL     = (cfg.serverUrl    || 'http://localhost:4000').replace(/\/$/, '');
@@ -384,8 +382,4 @@
     loadRrweb(startRecording);
   }
 
-  } catch (e) {
-    // Silently absorb any error — tracker must never block or break the host page
-  }
-
-})();
+})(); } catch (e) { /* tracker must never block the host page */ }
