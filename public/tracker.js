@@ -14,6 +14,8 @@
 (function () {
   'use strict';
 
+  try {
+
   var cfg            = window.SmartRecordingConfig || {};
   var SERVER_URL     = (cfg.serverUrl    || 'http://localhost:4000').replace(/\/$/, '');
   var SITE_ID        = cfg.siteId        || 'default';
@@ -380,6 +382,10 @@
     document.addEventListener('DOMContentLoaded', function () { loadRrweb(startRecording); });
   } else {
     loadRrweb(startRecording);
+  }
+
+  } catch (e) {
+    // Silently absorb any error — tracker must never block or break the host page
   }
 
 })();
