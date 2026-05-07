@@ -609,8 +609,8 @@ async function router(req, res) {
     const siteId   = parsed.searchParams.get('siteId');
     let sessions   = readSessions();
     if (siteId) sessions = sessions.filter(s => s.siteId === siteId);
-    // Mostra solo sessioni completate (no live — appaiono quando la sessione è chiusa)
-    sessions = sessions.filter(s => s.status === 'completed');
+    // Mostra sia sessioni completate che live (recording)
+    sessions = sessions.filter(s => s.status === 'completed' || s.status === 'recording');
     // Ordina: per relevanceScore desc, poi per data desc
     const sorted   = [...sessions].sort((a, b) => {
       if ((b.relevanceScore || 0) !== (a.relevanceScore || 0)) return (b.relevanceScore || 0) - (a.relevanceScore || 0);
