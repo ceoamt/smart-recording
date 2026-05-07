@@ -113,7 +113,29 @@ function initStorage() {
   if (!fs.existsSync(EVENTS_DIR))  fs.mkdirSync(EVENTS_DIR,  { recursive: true });
   if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]', 'utf8');
   if (!fs.existsSync(CLIENTS_FILE))  fs.writeFileSync(CLIENTS_FILE,  '[]', 'utf8');
+  seedInitialClients();
   cleanupStaleSessions();
+}
+
+// Legge INITIAL_CLIENTS da env e aggiunge i client mancanti (sopravvive ai deploy)
+// Formato: JSON array, es. [{"siteId":"okkia","name":"Okkia"}]
+function seedInitialClients() {
+  const raw = process.env.INITIAL_CLIENTS;
+  if (!raw) return;
+  let seeds;
+  try { seeds = JSON.parse(raw); } catch (e) { return; }
+  if (!Array.isArray(seeds)) return;
+  const clients = readClients();
+  let changed = false;
+  seeds.forEach(function (s) {
+    const siteId = (s.siteId || '').trim().toLowerCase().replace(/\s+/g, '-');
+    if (!siteId) return;
+    if (clients.find(c => c.siteId === siteId)) return; // già presente
+    clients.push({ id: generateId(), siteId, name: s.name || siteId, createdAt: Date.now() });
+    changed = true;
+    console.log('[SR] seeded client from env:', siteId);
+  });
+  if (changed) writeClients(clients);
 }
 
 // Rimuove sessioni rimaste in stato 'recording' da più di 2h (browser chiuso senza /end)
