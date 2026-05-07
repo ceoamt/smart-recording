@@ -256,18 +256,21 @@ try { (function () {
         // Se il server ha rifiutato (qualsiasi motivo: sampled_out, unknown_site, limit_reached)
         // → ferma tutto, non inviare eventi (evita 404 su /events)
         if (!data || data.ok === false) {
+          console.warn('[SmartRecording] session rejected:', data && data.reason);
           if (typeof stopFn === 'function') { stopFn(); stopFn = null; }
           sessionStorage.removeItem(_SID_KEY);
           sessionStorage.removeItem(_MET_KEY);
           return;
         }
         // Sessione creata o aggiornata → ora è sicuro inviare eventi
+        console.warn('[SmartRecording] session started OK:', SESSION_ID);
         sessionReady   = true;
         sessionStarted = true;
         scheduleFlush();
       })
-      .catch(function () {
+      .catch(function (err) {
         // Errore di rete → prova comunque
+        console.warn('[SmartRecording] network error on start:', err && err.message);
         sessionReady   = true;
         sessionStarted = true;
       });
@@ -382,4 +385,4 @@ try { (function () {
     loadRrweb(startRecording);
   }
 
-})(); } catch (e) { /* tracker must never block the host page */ }
+})(); } catch (e) { console.warn('[SmartRecording] fatal error:', e && e.message); }
