@@ -1157,7 +1157,7 @@
     <!-- Max sessioni -->
     <div class="settings-field">
       <label>
-        Sessioni massime
+        Sessioni massime al giorno
         <span id="csm-sessions-val">illimitato</span>
       </label>
       <div class="settings-presets" id="csm-sessions-presets">
@@ -1168,7 +1168,7 @@
         <button class="preset-btn" onclick="setMaxSessions(500)">500</button>
         <button class="preset-btn" onclick="setMaxSessions(1000)">1000</button>
       </div>
-      <p class="hint">Quando il limite è raggiunto, le nuove sessioni vengono scartate silenziosamente. Usa <strong>∞ Illimitato</strong> per non porre vincoli.</p>
+      <p class="hint">Limite giornaliero: si azzera ogni mezzanotte. Quando raggiunto, le nuove sessioni vengono scartate silenziosamente. Usa <strong>∞ Illimitato</strong> per non porre vincoli.</p>
     </div>
 
     <!-- Sample rate -->
@@ -1395,7 +1395,7 @@
         var used = c.sessionCount || 0;
         var pct  = Math.round(used / c.maxSessions * 100);
         var col  = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
-        limitBadge = '<span title="' + used + '/' + c.maxSessions + ' sessioni" style="font-size:10px;color:' + col + ';margin-left:2px;">⬤</span>';
+        limitBadge = '<span title="' + used + '/' + c.maxSessions + ' sessioni oggi" style="font-size:10px;color:' + col + ';margin-left:2px;">⬤</span>';
       }
       rows += '<div class="client-item' + (isActive ? ' active' : '') + '" onclick="selectClient(\'' + c.id + '\')">' +
         '<div class="client-dot" style="background:' + color + ';flex-shrink:0"></div>' +

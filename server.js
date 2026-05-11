@@ -405,9 +405,10 @@ async function router(req, res) {
       return;
     }
 
-    // Limite massimo sessioni per cliente
+    // Limite massimo sessioni giornaliere per cliente
     if (client.maxSessions > 0) {
-      const clientCount = sessions.filter(s => s.siteId === siteId).length;
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+      const clientCount = sessions.filter(s => s.siteId === siteId && s.startTime >= todayStart.getTime()).length;
       if (clientCount >= client.maxSessions) {
         json(res, 200, { ok: false, reason: 'limit_reached' });
         return;
