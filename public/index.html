@@ -1799,7 +1799,6 @@
   function applyFilters() {
     var q        = (document.getElementById('search-input').value || '').toLowerCase();
     var filtered = sessions.filter(function (s) {
-      if (s.status === 'recording') return false;
       if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
       if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
       if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
@@ -1824,7 +1823,6 @@
     // Aggiorna sidebar (il pulsante diventa Re-Play subito)
     renderSessions(applySorting(sessions.filter(function (s) {
       var q = document.getElementById('search-input').value.toLowerCase();
-      if (s.status === 'recording') return false;
       return !q || s.url.toLowerCase().includes(q);
     })));
 

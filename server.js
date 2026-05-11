@@ -138,15 +138,15 @@ function seedInitialClients() {
   if (changed) writeClients(clients);
 }
 
-// Rimuove sessioni rimaste in stato 'recording' da più di 2h (browser chiuso senza /end)
+// Completa sessioni rimaste in stato 'recording' da più di 30 min (browser chiuso senza /end)
 function cleanupStaleSessions() {
-  const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2 ore fa
+  const cutoff = Date.now() - 30 * 60 * 1000; // 30 min fa
   const sessions = readSessions();
   const stale = sessions.filter(s => s.status === 'recording' && s.startTime < cutoff);
   if (stale.length === 0) return;
-  stale.forEach(s => deleteEventFile(s.id));
-  writeSessions(sessions.filter(s => !(s.status === 'recording' && s.startTime < cutoff)));
-  console.log(`[cleanup] Rimosse ${stale.length} sessioni stale (recording > 2h)`);
+  stale.forEach(s => { s.status = 'completed'; s.endTime = s.endTime || (s.startTime + 60000); });
+  writeSessions(sessions);
+  console.log(`[cleanup] Completate ${stale.length} sessioni stale (recording > 30 min)`);
 }
 
 // ─── Helpers I/O ────────────────────────────────────────────────────────────
@@ -721,6 +721,7 @@ async function router(req, res) {
 // ─── Avvio ───────────────────────────────────────────────────────────────────
 initStorage();
 scheduleTTL();
+setInterval(cleanupStaleSessions, 5 * 60 * 1000); // ogni 5 min: completa sessioni abbandonate
 
 // Log diagnostico: verifica volume montato correttamente
 console.log('[startup] DATA_DIR =', DATA_DIR);
