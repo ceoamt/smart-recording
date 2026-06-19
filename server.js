@@ -379,15 +379,17 @@ async function router(req, res) {
     const sessions = readSessions();
     const id       = body.sessionId || generateId();
 
-    // Sessione già esistente → continuazione (navigazione multi-pagina stesso tab)
-    const existingIdx = sessions.findIndex(s => s.id === id);
+    // Sessione già esistente in stato 'recording' → vera navigazione multi-pagina, riprendi
+    const existingIdx = sessions.findIndex(s => s.id === id && s.status === 'recording');
     if (existingIdx !== -1) {
-      sessions[existingIdx].url    = body.url || sessions[existingIdx].url;
-      sessions[existingIdx].status = 'recording';
+      sessions[existingIdx].url = body.url || sessions[existingIdx].url;
       writeSessions(sessions);
       json(res, 200, { ok: true, sessionId: id, continuing: true });
       return;
     }
+    // Se esiste già una sessione completata con lo stesso ID, genera un nuovo ID
+    const alreadyExists = sessions.some(s => s.id === id);
+    const finalId = alreadyExists ? generateId() : id;
 
     const siteId  = body.siteId || 'default';
     const clients = readClients();
@@ -416,7 +418,7 @@ async function router(req, res) {
     }
 
     const session = {
-      id,
+      id: finalId,
       siteId,
       startTime:      Date.now(),
       endTime:        null,
@@ -447,13 +449,13 @@ async function router(req, res) {
 
     sessions.push(session);
     writeSessions(sessions);
-    json(res, 200, { ok: true, sessionId: id });
+    json(res, 200, { ok: true, sessionId: finalId });
 
     // Geo lookup asincrono (non blocca la risposta)
     geoLookup(cleanIp).then(geo => {
       if (!geo.country) return;
       const ss = readSessions();
-      const ix = ss.findIndex(s => s.id === id);
+      const ix = ss.findIndex(s => s.id === finalId);
       if (ix !== -1) { ss[ix].country = geo.country; ss[ix].countryName = geo.countryName; writeSessions(ss); }
     }).catch(() => {});
     return;
