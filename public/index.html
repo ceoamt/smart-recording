@@ -1072,6 +1072,11 @@
         </div>
       </div>
       <div class="filter-chips" id="filter-chips"></div>
+      <div style="padding:0 12px 8px;display:flex;align-items:center;gap:6px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        <input type="text" id="exit-page-input" placeholder="Exit page contiene… (es. carrello)" oninput="applyFilters()"
+          style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;outline:none;" />
+      </div>
       <div class="sessions-list" id="sessions-list">
         <div class="empty-state">
           <div class="spinner"></div>
@@ -1798,10 +1803,15 @@
 
   function applyFilters() {
     var q        = (document.getElementById('search-input').value || '').toLowerCase();
+    var exitQ    = (document.getElementById('exit-page-input') ? document.getElementById('exit-page-input').value || '' : '').toLowerCase();
     var filtered = sessions.filter(function (s) {
       if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
       if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
       if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
+      if (exitQ) {
+        var exitPage = s.exitPage || (s.pageList && s.pageList.length ? s.pageList[s.pageList.length - 1].path : '');
+        if (!exitPage || !exitPage.toLowerCase().includes(exitQ)) return false;
+      }
       return true;
     });
     renderSessions(applySorting(filtered));
@@ -2142,10 +2152,12 @@
           var vpW  = vp.width  || 1280;
           var vpH  = vp.height || 800;
           var playerArea = document.getElementById('player-area');
+          var playerWrap = document.getElementById('player-wrap');
           var areaW = playerArea.offsetWidth  || 1000;
-          var maxW  = areaW - 48; // 24px padding sx + dx
-          // Scala sempre per riempire la larghezza; player-wrap scrolla verticalmente
-          var scale  = maxW / vpW;
+          var areaH = (playerWrap.offsetHeight || 600) - 80; // lascia spazio ai controlli
+          var maxW  = areaW - 48;
+          // Fit dentro l'area visibile; non ingrandire oltre 1× (mobile non si espande)
+          var scale  = Math.min(maxW / vpW, areaH / vpH, 1);
           var frameW = Math.round(vpW * scale);  // ≈ maxW
           var frameH = Math.round(vpH * scale);
 
@@ -2768,7 +2780,7 @@
   }
 
   // ── Auto-refresh ogni 15s ──────────────────────────────────────────────────
-  setInterval(function () { loadSessions(); loadClients(); }, 15000);
+  setInterval(function () { loadSessions(); loadClients(); }, 30000);
 
   // ── Init ───────────────────────────────────────────────────────────────────
   // Controlla se c'è un ?session=ID nell'URL (link condiviso)

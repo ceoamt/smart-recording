@@ -157,6 +157,7 @@ function readSessions() {
 
 function writeSessions(sessions) {
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
+  invalidateSessionsCache();
 }
 
 function eventsFilePath(sessionId) {
@@ -269,6 +270,21 @@ function readClients() {
   try { return JSON.parse(fs.readFileSync(CLIENTS_FILE, 'utf8')); }
   catch { return []; }
 }
+
+// ─── Sessions cache (evita readFileSync sincrono ad ogni richiesta) ──────────
+let _sessionsCache = null;
+let _sessionsCacheTs = 0;
+const SESSIONS_CACHE_TTL = 4000; // 4 secondi
+
+function readSessionsCached() {
+  const now = Date.now();
+  if (_sessionsCache && now - _sessionsCacheTs < SESSIONS_CACHE_TTL) return _sessionsCache;
+  _sessionsCache = readSessions();
+  _sessionsCacheTs = now;
+  return _sessionsCache;
+}
+
+function invalidateSessionsCache() { _sessionsCache = null; }
 
 function writeClients(clients) {
   fs.writeFileSync(CLIENTS_FILE, JSON.stringify(clients, null, 2), 'utf8');
@@ -609,16 +625,20 @@ async function router(req, res) {
 
   // ── GET /api/sessions ─────────────────────────────────────────────────────
   if (method === 'GET' && pathname === '/api/sessions') {
-    const siteId   = parsed.searchParams.get('siteId');
-    let sessions   = readSessions();
+    const siteId = parsed.searchParams.get('siteId');
+    const limit  = Math.min(parseInt(parsed.searchParams.get('limit') || '300', 10), 1000);
+    let sessions = readSessionsCached();
     if (siteId) sessions = sessions.filter(s => s.siteId === siteId);
-    // Mostra sia sessioni completate che live (recording)
     sessions = sessions.filter(s => s.status === 'completed' || s.status === 'recording');
-    // Ordina: per relevanceScore desc, poi per data desc
-    const sorted   = [...sessions].sort((a, b) => {
-      if ((b.relevanceScore || 0) !== (a.relevanceScore || 0)) return (b.relevanceScore || 0) - (a.relevanceScore || 0);
-      return b.startTime - a.startTime;
-    });
+    // Ordina per data desc, poi taglia al limite
+    const sorted = [...sessions]
+      .sort((a, b) => b.startTime - a.startTime)
+      .slice(0, limit)
+      .map(s => {
+        // Aggiunge exitPage (ultima pagina visitata) per il filtro client-side
+        const last = s.pageList && s.pageList.length ? s.pageList[s.pageList.length - 1].path : null;
+        return last ? Object.assign({}, s, { exitPage: last }) : s;
+      });
     json(res, 200, sorted);
     return;
   }
