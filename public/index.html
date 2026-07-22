@@ -1812,6 +1812,7 @@
     var exitQ    = (document.getElementById('exit-page-input') ? document.getElementById('exit-page-input').value || '' : '').toLowerCase();
     var filtered = sessions.filter(function (s) {
       if (q && !s.url.toLowerCase().includes(q) && !(s.userAgent || '').toLowerCase().includes(q)) return false;
+      if (!s.eventsCount || s.eventsCount === 0) return false;
       if (activeFilters.deviceType && s.deviceType !== activeFilters.deviceType) return false;
       if (activeFilters.os         && s.os         !== activeFilters.os)         return false;
       if (exitQ) {
