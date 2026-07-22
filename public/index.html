@@ -1697,6 +1697,7 @@
       '<th title="Preferito">★</th>' +
       thSort('relevance', 'Rilevanza') +
       '<th>Landing</th>' +
+      '<th title="Ultima pagina prima di uscire">Exit page</th>' +
       thSort('country', 'Paese') +
       (showSite ? '<th>Cliente</th>' : '') +
       thSort('pages',    'Pagine',  'Pagine visitate') +
@@ -1718,6 +1719,10 @@
         ? '<span title="' + escHtml(s.countryName || s.country) + '" style="font-size:16px">' + flag + '</span>'
         : '<span style="color:var(--muted);font-size:11px">—</span>';
 
+      // Exit page (ultima pagina della sessione)
+      var exitPagePath  = s.exitPage || (s.pageList && s.pageList.length ? s.pageList[s.pageList.length - 1].path : '');
+      var exitPageShort = exitPagePath.length > 28 ? exitPagePath.slice(0, 26) + '…' : (exitPagePath || '—');
+
       // Icone comportamentali nella riga
       var behaviorHints = '';
       if (s.rageClicks > 0)    behaviorHints += '<span title="' + s.rageClicks + ' rage click" style="color:#e05252;font-size:11px">😠×' + s.rageClicks + '</span> ';
@@ -1736,6 +1741,7 @@
         '</td>' +
         '<td style="padding:5px 8px">' + relevanceBadge(s.relevance, s.relevanceScore) + '</td>' +
         '<td class="td-url" title="' + escHtml(s.url) + '">' + fmtShortUrl(s.url) + liveIndicator + '</td>' +
+        '<td class="td-url" style="color:var(--muted)" title="' + escHtml(exitPagePath) + '">' + escHtml(exitPageShort) + '</td>' +
         '<td style="text-align:center">' + countryCell + '</td>' +
         (showSite ? '<td class="td-site">' + escHtml(s.siteId || '') + '</td>' : '') +
         '<td style="color:var(--muted);text-align:center">' + (s.pagesVisited || 1) + '</td>' +
