@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Recording – Dashboard</title>
+  <title>Smart Recording</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* rrweb replayer wrapper */
+    /* ─── rrweb replayer (keep) ─────────────────────────────────────── */
     .replayer-wrapper { position: relative; }
     .replayer-wrapper iframe { border: none; pointer-events: none; }
     .replayer-mouse {
@@ -14,1094 +17,739 @@
       border: 2px solid rgba(0,0,0,.5); background: rgba(255,255,255,.7);
       transform: translate(-50%,-50%); pointer-events: none; transition: left .05s, top .05s;
     }
-    .replayer-mouse-tail { position: absolute; pointer-events: none; }
-  </style>
 
-  <style>
-    /* ── Reset & base ─────────────────────────────────────────────────── */
+    /* ─── Reset ─────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --surface2: #22263a;
-      --border:   #2e3347;
-      --accent:   #5b6af0;
-      --accent2:  #7c89ff;
-      --text:     #e4e6f0;
-      --muted:    #7a7f9a;
-      --red:      #e05252;
-      --green:    #4caf7d;
-      --yellow:   #f0a830;
-      --radius:   10px;
-    }
-
+    html, body { height: 100%; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Design tokens ─────────────────────────────────────────────── */
+    :root {
+      --bg: #f3f1ec;
+      --card: #ffffff;
+      --border: #e7e4dd;
+      --text: #1f1d1a;
+      --muted: #8a8579;
+      --subtle: #a19c8f;
+      --link: #3752c4;
+      --nav-w: 248px;
+
+      --grad-good:  linear-gradient(150deg,#d9e86b 0%,#3a9a52 65%,#1f6b3a 100%);
+      --grad-warn:  linear-gradient(150deg,#f7cf7a 0%,#e0723a 70%,#b8471f 100%);
+      --grad-alert: linear-gradient(150deg,#f7b3c8 0%,#e0456f 70%,#a52353 100%);
+      --grad-info:  linear-gradient(150deg,#c3cdf7 0%,#5c6fd8 70%,#3a49a8 100%);
+
+      --shadow-card: 0 1px 2px rgba(20,16,8,0.04), 0 12px 28px rgba(20,16,8,0.05);
+      --shadow-tile: 0 1px 2px rgba(20,16,8,0.06), 0 10px 24px rgba(20,16,8,0.10);
+      --shadow-tile-hover: 0 1px 3px rgba(20,16,8,0.08), 0 16px 40px rgba(20,16,8,0.15);
+
+      /* legacy vars referenced by JS-rendered HTML */
+      --accent: #3752c4;
+      --red: #e0456f;
+      --yellow: #e0723a;
+      --green: #3a9a52;
+      --surface: #f3f1ec;
+    }
+
+    /* ─── App shell ─────────────────────────────────────────────────── */
+    .sr-shell { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ─── Left nav ──────────────────────────────────────────────────── */
+    .sr-nav {
+      width: var(--nav-w);
+      flex-shrink: 0;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
       height: 100vh;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
     }
 
-    /* ── Topbar ───────────────────────────────────────────────────────── */
-    .topbar {
+    /* Logo */
+    .sr-logo {
+      padding: 20px 18px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 0 24px;
-      height: 56px;
-      background: var(--surface);
+      gap: 10px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
-    .topbar-logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: -0.3px;
-      color: var(--text);
-      text-decoration: none;
-    }
-    .topbar-logo svg { color: var(--accent2); }
-    .topbar-tag {
-      font-size: 11px;
-      background: var(--accent);
-      color: #fff;
-      border-radius: 4px;
-      padding: 2px 7px;
-      font-weight: 600;
-      letter-spacing: .4px;
-    }
-    .topbar-spacer { flex: 1; }
-    .topbar-stats {
-      display: flex;
-      gap: 20px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .topbar-stats strong { color: var(--text); font-size: 14px; }
-
-    /* ── Layout ───────────────────────────────────────────────────────── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── Pannello clienti ─────────────────────────────────────────────── */
-    .clients-panel {
-      width: 180px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      background: var(--bg);
-      overflow: hidden;
-    }
-    .clients-panel-header {
-      padding: 14px 14px 10px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .clients-panel-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-    }
-    .client-add-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 3px 6px;
-      font-size: 16px;
-      line-height: 1;
-      transition: color .15s, border-color .15s;
-    }
-    .client-add-btn:hover { color: var(--text); border-color: var(--accent); }
-    .clients-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .clients-list::-webkit-scrollbar { width: 3px; }
-    .clients-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    .client-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 10px;
-      border-radius: 7px;
-      cursor: pointer;
-      transition: background .12s;
+    .sr-logo-mark {
       position: relative;
+      width: 36px;
+      height: 36px;
+      background: #1f1d1a;
+      border-radius: 11px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .client-item:hover { background: var(--surface); }
-    .client-item.active { background: var(--surface2); }
-    .client-item.active::before {
+    .sr-logo-badge {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: linear-gradient(135deg,#d9e86b,#3a9a52);
+      border: 2px solid #f3f1ec;
+    }
+    .sr-logo-badge::after {
       content: '';
       position: absolute;
-      left: 0; top: 20%; bottom: 20%;
-      width: 3px;
-      background: var(--accent);
-      border-radius: 0 3px 3px 0;
-    }
-    .client-dot {
-      width: 8px; height: 8px;
+      inset: -3px;
       border-radius: 50%;
-      flex-shrink: 0;
+      border: 2px solid rgba(58,154,82,.5);
+      animation: pulse-ring 2.2s ease-out infinite;
     }
-    .client-name {
-      font-size: 13px;
-      color: var(--text);
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: .7; }
+      100% { transform: scale(2.2); opacity: 0;  }
     }
-    .client-count {
-      font-size: 11px;
-      color: var(--muted);
-      background: var(--surface2);
-      border-radius: 10px;
-      padding: 1px 6px;
+    .sr-wordmark { display: flex; flex-direction: column; gap: 1px; }
+    .sr-wordmark-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 17px; letter-spacing: -0.02em;
+      color: #1f1d1a; line-height: 1.1;
+    }
+    .sr-wordmark-tag {
+      font-family: 'Inter', sans-serif;
+      font-weight: 400; font-size: 10.5px; letter-spacing: 0.03em; color: #a19c8f;
     }
 
-    /* Modal nuovo cliente */
-    .client-new-form {
-      padding: 10px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    /* Nav buttons */
+    .sr-nav-items { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+    .sr-nav-btn {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      border: none; background: transparent; border-radius: 9px; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      color: var(--muted); text-align: left; width: 100%;
+      transition: background .15s, color .15s;
     }
+    .sr-nav-btn:hover { background: #f5f3ee; color: var(--text); }
+    .sr-nav-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(20,16,8,.08); }
+    .sr-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: #c8c4bc; flex-shrink: 0; }
+    .sr-nav-btn.active .sr-nav-dot { background: linear-gradient(135deg,#3a9a52,#1f6b3a); }
+
+    /* Clients section */
+    .sr-clients-section {
+      flex: 1; overflow: hidden; display: flex; flex-direction: column;
+      border-top: 1px solid var(--border);
+    }
+    .sr-clients-header { display: flex; align-items: center; padding: 10px 14px 8px; flex-shrink: 0; }
+    .sr-clients-title {
+      font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--subtle); flex: 1;
+    }
+    .client-add-btn {
+      width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--card); color: var(--muted); font-size: 16px; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .client-add-btn:hover { background: #f5f3ee; color: var(--text); }
+
+    .client-new-form { padding: 0 10px 8px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
     .client-new-form input {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 6px 10px;
-      color: var(--text);
-      font-size: 12px;
-      outline: none;
+      width: 100%; background: #f5f3ee; border: 1px solid var(--border);
+      border-radius: 7px; padding: 6px 9px; color: var(--text);
+      font-size: 12px; font-family: 'Inter', sans-serif; outline: none;
     }
-    .client-new-form input:focus { border-color: var(--accent); }
+    .client-new-form input:focus { border-color: #b8b4ac; }
     .client-new-form-btns { display: flex; gap: 6px; }
 
-    .client-actions {
-      display: none;
-      gap: 2px;
-      margin-left: auto;
-      flex-shrink: 0;
+    .clients-list { flex: 1; overflow-y: auto; padding: 0 6px 8px; }
+    .clients-list::-webkit-scrollbar { width: 4px; }
+    .clients-list::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 2px; }
+
+    .client-item {
+      display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+      border-radius: 8px; cursor: pointer; transition: background .15s; position: relative;
     }
+    .client-item:hover { background: #f5f3ee; }
+    .client-item.active { background: #f0eee7; }
+    .client-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .client-name { flex: 1; font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .client-count { font-size: 11px; color: var(--subtle); font-weight: 500; }
+    .client-actions { display: none; gap: 2px; }
     .client-item:hover .client-actions { display: flex; }
     .client-action-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 3px 5px;
-      border-radius: 4px;
-      line-height: 0;
-      transition: color .12s, background .12s;
+      width: 20px; height: 20px; border: none; background: transparent; border-radius: 4px;
+      cursor: pointer; color: var(--muted); display: flex; align-items: center;
+      justify-content: center; transition: background .1s;
     }
-    .client-action-btn:hover { color: var(--text); background: var(--border); }
-    .client-action-btn.del:hover { color: var(--red); background: rgba(224,82,82,.12); }
-
-    /* Inline rename input */
+    .client-action-btn:hover { background: #e7e4dd; color: var(--text); }
+    .client-action-btn.del:hover { background: #fde3da; color: #b34a1f; }
     .client-rename-input {
-      background: var(--bg);
-      border: 1px solid var(--accent);
-      border-radius: 5px;
-      padding: 2px 7px;
-      color: var(--text);
-      font-size: 13px;
-      outline: none;
-      flex: 1;
-      min-width: 0;
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 5px; padding: 2px 6px; font-size: 12.5px;
+      color: var(--text); font-family: 'Inter', sans-serif; outline: none;
     }
 
-    /* ── Sidebar sessioni ─────────────────────────────────────────────── */
-    .sidebar {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      background: var(--surface);
-      overflow: hidden;
+    /* Nav footer */
+    .sr-nav-footer { padding: 12px 10px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .sr-install-btn {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px;
+      border: 1px solid var(--border); background: var(--card); cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text); width: 100%;
+      font-family: 'Inter', sans-serif; transition: background .15s;
+    }
+    .sr-install-btn:hover { background: #f5f3ee; }
+    .sr-logout-btn {
+      display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 9px;
+      border: none; background: transparent; cursor: pointer; font-size: 12px;
+      font-weight: 500; color: var(--muted); width: 100%;
+      font-family: 'Inter', sans-serif; margin-top: 4px; transition: background .15s, color .15s;
+    }
+    .sr-logout-btn:hover { background: #f5f3ee; color: var(--text); }
+
+    /* ─── Main content ──────────────────────────────────────────────── */
+    .sr-main { flex: 1; overflow: hidden; display: flex; min-width: 0; }
+
+    /* Sidebar wrapper — .sidebar class kept for JS compat */
+    .sidebar { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .sidebar.hidden { display: none !important; }
+
+    /* ─── Pane sessions ─────────────────────────────────────────────── */
+    #pane-sessions {
+      display: flex; flex-direction: column; flex: 1; overflow: hidden;
+      padding: 26px 32px 0;
     }
 
-    .sidebar-header {
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .sr-pane-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 20px; flex-shrink: 0; gap: 16px;
     }
+    .sr-pane-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 26px; color: var(--text); line-height: 1.1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sr-pane-subtitle { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .sr-pane-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-top: 4px; }
 
-    .sidebar-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    /* Search */
+    .sr-search {
+      display: flex; align-items: center; gap: 8px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px; padding: 7px 12px;
+      width: 280px; box-shadow: 0 1px 2px rgba(20,16,8,.04);
     }
+    .sr-search input {
+      border: none; background: transparent; font-size: 13px; color: var(--text);
+      outline: none; font-family: 'Inter', sans-serif; width: 100%;
+    }
+    .sr-search input::placeholder { color: var(--subtle); }
+    .sr-search svg { color: var(--subtle); flex-shrink: 0; }
 
-    .sidebar-search {
-      position: relative;
+    /* Exit page filter */
+    .sr-exitpage-filter {
+      display: flex; align-items: center; gap: 8px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px; padding: 7px 12px;
+      margin-bottom: 14px; flex-shrink: 0; box-shadow: 0 1px 2px rgba(20,16,8,.04);
     }
-    .sidebar-search input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 7px 12px 7px 32px;
-      color: var(--text);
-      font-size: 13px;
-      outline: none;
-      transition: border-color .15s;
+    .sr-exitpage-filter input {
+      border: none; background: transparent; font-size: 13px; color: var(--text);
+      outline: none; font-family: 'Inter', sans-serif; width: 100%;
     }
-    .sidebar-search input:focus { border-color: var(--accent); }
-    .sidebar-search svg {
-      position: absolute;
-      left: 9px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--muted);
-    }
+    .sr-exitpage-filter input::placeholder { color: var(--subtle); }
+    .sr-exitpage-filter svg { color: var(--subtle); flex-shrink: 0; }
 
-    /* ── Filtri device ───────────────────────────────────────────────── */
-    .filter-chips {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-      padding: 8px 12px 4px;
-      border-bottom: 1px solid var(--border);
+    /* ─── KPI tiles ─────────────────────────────────────────────────── */
+    .sr-kpi-grid {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 14px; margin-bottom: 20px; flex-shrink: 0;
     }
+    .sr-kpi-tile {
+      border-radius: 20px; padding: 20px; color: white; position: relative;
+      overflow: hidden; box-shadow: var(--shadow-tile); cursor: default;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .sr-kpi-tile::before {
+      content: ''; position: absolute; top: -30%; left: -10%;
+      width: 70%; height: 70%;
+      background: radial-gradient(circle, rgba(255,255,255,.35), transparent 70%);
+      pointer-events: none;
+    }
+    .sr-kpi-tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-tile-hover); }
+    .sr-kpi-label { font-size: 12px; font-weight: 600; opacity: .9; margin-bottom: 6px; }
+    .sr-kpi-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 28px; white-space: nowrap; line-height: 1; margin-bottom: 4px;
+    }
+    .sr-kpi-sub { font-size: 11px; opacity: .75; }
+
+    /* ─── Filter chips ──────────────────────────────────────────────── */
+    .sr-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; flex-shrink: 0; }
     .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 9px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      background: none;
-      transition: all .12s;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+      cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--text);
+      font-family: 'Inter', sans-serif; transition: background .15s, border-color .15s;
     }
-    .chip:hover { border-color: var(--accent); color: var(--text); }
-    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .chip:hover { background: #f5f3ee; }
+    .chip.active { background: #1f1d1a; color: white; border-color: #1f1d1a; }
 
-    /* ── Sessions table (Hotjar style) ──────────────────────────────── */
-    .sessions-list {
-      flex: 1;
-      overflow: auto;
+    /* ─── Table card ────────────────────────────────────────────────── */
+    .sr-table-card {
+      background: var(--card); border-radius: 20px; border: 1px solid var(--border);
+      box-shadow: var(--shadow-card); flex: 1; overflow: hidden;
+      display: flex; flex-direction: column; min-height: 0; margin-bottom: 26px;
     }
-    .sessions-list::-webkit-scrollbar { width: 4px; }
-    .sessions-list::-webkit-scrollbar-track { background: transparent; }
-    .sessions-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sessions-list { flex: 1; overflow: auto; }
+    .sessions-list::-webkit-scrollbar { width: 6px; height: 6px; }
+    .sessions-list::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 3px; }
 
-    .sessions-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
+    table.sessions-table {
+      width: 100%; border-collapse: collapse; min-width: 1280px; font-size: 12.5px;
     }
-    .sessions-table thead th {
-      padding: 8px 10px;
-      text-align: left;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      white-space: nowrap;
+    table.sessions-table thead th {
+      padding: 11px 10px; text-align: left; font-size: 11.5px; font-weight: 600;
+      color: var(--muted); background: var(--card); border-bottom: 1px solid var(--border);
+      white-space: nowrap; position: sticky; top: 0; z-index: 1;
     }
-    .sessions-table tbody tr {
-      border-bottom: 1px solid rgba(46,51,71,.6);
-      cursor: pointer;
-      transition: background .1s;
+    table.sessions-table tbody tr {
+      border-bottom: 1px solid #f5f3ee; transition: background .15s; cursor: pointer;
     }
-    .sessions-table tbody tr:hover td { background: rgba(34,38,58,.6); }
-    .sessions-table tbody tr.active td { background: var(--surface2); }
-    .sessions-table tbody tr.active td:first-child {
-      box-shadow: inset 3px 0 0 var(--accent);
-    }
-    .sessions-table td {
-      padding: 7px 10px;
-      color: var(--text);
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    .td-url {
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--accent2);
-    }
-    .td-site {
-      max-width: 90px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--muted);
-      font-size: 11px;
-    }
-    .td-tags { min-width: 60px; }
-    .td-date { color: var(--muted); font-size: 11px; min-width: 120px; }
-    .td-actions { white-space: nowrap; }
+    table.sessions-table tbody tr:hover { background: #faf9f5; }
+    table.sessions-table tbody tr:last-child { border-bottom: none; }
+    table.sessions-table tbody td { padding: 13px 10px; vertical-align: middle; color: var(--text); }
 
-    /* Star button */
-    .btn-star {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--muted);
-      padding: 2px 3px;
-      border-radius: 4px;
-      font-size: 14px;
-      line-height: 1;
-      transition: color .1s;
-    }
-    .btn-star:hover, .btn-star.starred { color: var(--yellow); }
+    .td-url { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    .td-date { white-space: nowrap; color: var(--muted); font-size: 12px; }
+    .td-tags { display: flex; flex-wrap: wrap; gap: 4px; min-width: 80px; }
+    .td-actions { display: flex; gap: 4px; }
+    .td-site { font-size: 11px; color: var(--muted); }
 
-    /* Play row button */
+    /* Play button in row */
     .btn-play-row {
-      background: var(--accent);
-      border: none;
-      border-radius: 5px;
-      color: #fff;
-      cursor: pointer;
-      padding: 4px 8px;
-      font-size: 11px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: opacity .1s;
-      white-space: nowrap;
+      width: 34px; height: 28px; border-radius: 9px; border: none;
+      background: #f0eee7; color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s, transform .15s;
     }
-    .btn-play-row:hover { opacity: .8; }
-    .btn-play-row.replay { background: var(--muted); }
+    .btn-play-row:hover { background: #1f1d1a; color: white; transform: scale(1.08); }
+    .btn-play-row.replay { background: #e8e4da; }
 
     /* Tag pills */
     .tag-pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 1px 5px;
-      border-radius: 8px;
-      font-size: 11px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      margin: 1px 2px 1px 0;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px;
+      font-weight: 600; border-radius: 7px; padding: 2px 7px; white-space: nowrap;
     }
 
-    /* Tag picker (in player toolbar) */
-    .tag-picker {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .tag-picker-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      margin-right: 2px;
-    }
-    .tag-picker-btn {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      cursor: pointer;
-      padding: 3px 8px;
-      font-size: 12px;
-      transition: border-color .1s, background .1s;
-    }
-    .tag-picker-btn:hover { border-color: var(--accent); }
-    .tag-picker-btn.active { border-color: var(--accent); background: rgba(91,106,240,.18); }
-
-    /* Note input */
-    .session-note-input {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      font-size: 12px;
-      padding: 4px 10px;
-      outline: none;
-      width: 180px;
-      transition: border-color .15s;
-      flex-shrink: 0;
-    }
-    .session-note-input:focus { border-color: var(--accent); }
-    .session-note-input::placeholder { color: var(--muted); }
+    /* Star */
+    .btn-star { border: none; background: transparent; color: #d4d0c8; font-size: 14px; cursor: pointer; padding: 0; line-height: 1; transition: color .15s; }
+    .btn-star.starred, .btn-star:hover { color: #e0723a; }
 
     /* Table action buttons */
     .tbl-action {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 3px 5px;
-      border-radius: 4px;
-      line-height: 0;
-      transition: color .1s, background .1s;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; cursor: pointer; color: var(--muted);
+      transition: background .15s, color .15s, border-color .15s;
     }
-    .tbl-action:hover { color: var(--text); background: var(--surface2); }
-    .tbl-action.del:hover { color: var(--red); background: rgba(224,82,82,.1); }
-    .tbl-action.del-confirm {
-      color: var(--red) !important;
-      background: rgba(224,82,82,.15) !important;
-      border: 1px solid rgba(224,82,82,.4);
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 6px;
-      line-height: 1;
-      border-radius: 4px;
+    .tbl-action:hover { background: #f5f3ee; color: var(--text); border-color: #d4d0c8; }
+    .tbl-action.del:hover { background: #fde3da; color: #b34a1f; border-color: #f0b8a8; }
+    .del-confirm {
+      padding: 4px 8px; border-radius: 8px; border: 1px solid #f0b8a8;
+      background: #fde3da; color: #b34a1f; font-size: 11px; font-weight: 600; cursor: pointer;
     }
 
-    /* Share toast */
-    .share-toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(10px);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 18px;
-      font-size: 13px;
-      color: var(--text);
-      box-shadow: 0 4px 20px rgba(0,0,0,.4);
-      opacity: 0;
-      transition: opacity .2s, transform .2s;
-      pointer-events: none;
-      z-index: 9999;
-    }
-    .share-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
+    /* Empty state */
     .empty-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      gap: 10px;
-      font-size: 13px;
-      padding: 40px 20px;
-      text-align: center;
-    }
-    .empty-state svg { color: var(--border); }
-
-    /* ── Player area ──────────────────────────────────────────────────── */
-    .player-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--bg);
-      overflow: hidden;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 60px 24px; color: var(--muted); text-align: center; font-size: 13px;
     }
 
-    .sidebar.hidden { display: none; }
+    /* ─── Pane statistiche ──────────────────────────────────────────── */
+    #pane-stats { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .stats-pane-header { padding: 26px 32px 0; flex-shrink: 0; }
+    .stats-panel { flex: 1; overflow-y: auto; padding: 20px 32px 32px; }
+    .stats-panel::-webkit-scrollbar { width: 6px; }
+    .stats-panel::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 3px; }
+
+    /* stat blocks (renderStats() output) */
+    .stat-block {
+      background: var(--card); border-radius: 16px; border: 1px solid var(--border);
+      box-shadow: var(--shadow-card); padding: 16px 18px; margin-bottom: 14px;
+    }
+    .stat-block-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .stat-kpi-row { display: flex; gap: 12px; margin-bottom: 8px; }
+    .stat-kpi { flex: 1; }
+    .stat-kpi-value { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: var(--text); }
+    .stat-kpi-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .activity-chart { display: flex; align-items: flex-end; gap: 2px; height: 60px; }
+    .activity-bar { flex: 1; background: linear-gradient(180deg,#5c6fd8,#3a49a8); border-radius: 2px 2px 0 0; min-height: 2px; transition: opacity .2s; }
+    .activity-bar:hover { opacity: .7; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bar-label { font-size: 12px; color: var(--text); width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 6px; background: #f0eee7; border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+    .bar-count { font-size: 11px; color: var(--muted); width: 28px; text-align: right; }
+    .top-pages-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f5f3ee; }
+    .top-pages-url { flex: 1; font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-pages-count { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    /* ─── Player area ───────────────────────────────────────────────── */
+    #player-area { flex: 1; display: none; flex-direction: column; overflow: hidden; background: var(--bg); }
 
     .player-toolbar {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      flex-shrink: 0;
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 14px 26px; flex-shrink: 0; display: none;
     }
-    .player-toolbar-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
-      flex-wrap: wrap;
-    }
-    .player-toolbar-row + .player-toolbar-row {
-      border-top: 1px solid var(--border);
-      padding-top: 8px;
-      padding-bottom: 8px;
-    }
+    .player-toolbar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .player-toolbar-row + .player-toolbar-row { margin-top: 10px; }
 
     .btn-back {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 13px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      flex-shrink: 0;
-      transition: color .12s, background .12s;
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 9px; border: 1px solid var(--border); background: var(--card);
+      cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--link);
+      font-family: 'Inter', sans-serif; transition: background .15s; flex-shrink: 0;
     }
-    .btn-back:hover { color: var(--text); background: var(--surface2); }
+    .btn-back:hover { background: #eef1fc; }
 
-    .player-session-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-      flex: 1;
-    }
-    .player-session-url {
-      font-size: 13px;
-      color: var(--accent2);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .player-session-meta {
-      font-size: 11px;
-      color: var(--muted);
-      display: flex;
-      gap: 14px;
-    }
+    .player-session-info { flex: 1; min-width: 0; }
+    .player-session-url { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-session-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; font-size: 12px; color: var(--muted); }
+    .player-session-meta span { display: flex; align-items: center; gap: 4px; }
 
-    .player-btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 7px;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity .15s;
-      flex-shrink: 0;
+    .tag-picker-label { font-size: 11px; font-weight: 600; color: var(--subtle); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; }
+    .tag-picker-btn {
+      padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); cursor: pointer; font-size: 12px; font-weight: 500;
+      color: #6b6656; font-family: 'Inter', sans-serif;
+      transition: background .15s, color .15s, border-color .15s, transform .1s;
     }
-    .player-btn:hover { opacity: .85; }
-    .player-btn:disabled { opacity: .4; cursor: default; }
-    .player-btn-ghost {
-      background: var(--surface2);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
+    .tag-picker-btn:hover { transform: translateY(-1px); }
+    .tag-picker-btn.active { background: #fde3da; color: #b34a1f; border-color: #f0b8a8; }
+    #tpick-1.active { background: #dde6fb; color: #3752c4; border-color: #b8c9f5; }
+    #tpick-2.active { background: #fbe6a8; color: #92660a; border-color: #f0d080; }
+    #tpick-3.active { background: #fbdad0; color: #b8471f; border-color: #f0b8a0; }
+    #tpick-4.active { background: #d9f0d8; color: #2f7a3c; border-color: #a8d8a5; }
+    #tpick-5.active { background: #ece0fb; color: #6b3fb8; border-color: #c8b0f0; }
 
-    .player-wrap {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      overflow: auto;
-      padding: 20px 20px 0;
+    .session-note-input {
+      padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: #f5f3ee; color: var(--text); font-size: 12px;
+      font-family: 'Inter', sans-serif; outline: none; min-width: 180px;
     }
+    .session-note-input:focus { border-color: #b8b4ac; background: var(--card); }
 
-    #rrweb-player-container {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .replay-frame {
-      background: #fff;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      position: relative;
-    }
-    .replay-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      border-radius: 0 0 var(--radius) var(--radius);
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
-    }
-    .replay-progress {
-      flex: 1;
-      height: 10px;
-      background: var(--border);
-      border-radius: 4px;
-      cursor: pointer;
-      position: relative;
-      margin: 0 4px;
-      overflow: visible;
-    }
-    .replay-progress:hover { height: 12px; }
-    .replay-progress-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 4px;
-      width: 0%;
-      pointer-events: none;
-    }
-    .replay-progress-thumb {
-      position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 14px;
-      height: 14px;
-      background: #fff;
-      border-radius: 50%;
-      left: 0%;
-      pointer-events: none;
-      box-shadow: 0 1px 4px rgba(0,0,0,.4);
-      opacity: 0;
-      transition: opacity .1s;
-    }
-    .replay-progress:hover .replay-progress-thumb { opacity: 1; }
+    .player-wrap { flex: 1; overflow: auto; padding: 24px; display: none; }
+    .player-wrap::-webkit-scrollbar { width: 6px; }
+    .player-wrap::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 3px; }
+    #rrweb-player-container { display: flex; flex-direction: column; align-items: center; }
 
-    /* Click ripple overlay sul replay */
-    @keyframes sr-click-ripple {
-      0%   { width: 0px; height: 0px; opacity: .85; margin: 0; }
-      100% { width: 48px; height: 48px; opacity: 0; margin: -24px; }
+    /* Browser chrome mock */
+    .sr-browser-chrome {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(20,16,8,.08);
+      display: inline-flex; flex-direction: column;
+      max-width: 100%;
     }
-    .sr-click-ripple {
-      position: absolute;
-      border-radius: 50%;
-      border: 2.5px solid #5b6af0;
-      background: rgba(91,106,240,.12);
-      pointer-events: none;
-      animation: sr-click-ripple .55s ease-out forwards;
-      z-index: 100;
+    .sr-chrome-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; background: #f0ede7;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .sr-click-ripple.rage { border-color: #e05252; background: rgba(224,82,82,.12); }
-    #click-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 99; }
-    .replay-time {
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-      min-width: 80px;
-      text-align: right;
+    .sr-chrome-dots { display: flex; gap: 5px; flex-shrink: 0; }
+    .sr-chrome-dots span {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block;
     }
-    .replay-speed {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 12px;
-      cursor: pointer;
-      outline: none;
+    .sr-chrome-dots span:nth-child(1) { background: #ff5f57; }
+    .sr-chrome-dots span:nth-child(2) { background: #febc2e; }
+    .sr-chrome-dots span:nth-child(3) { background: #28c840; }
+    .sr-chrome-url-bar {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px; font-size: 11.5px;
+      color: var(--muted); font-family: 'Inter', sans-serif;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
-    .replay-zoom-btns {
-      display: flex;
-      gap: 2px;
-      margin-left: 4px;
-    }
-    .zoom-btn {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      border-radius: 5px;
-      padding: 3px 8px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: background .15s, color .15s;
-    }
-    .zoom-btn:hover { background: var(--surface2); color: var(--text); }
-    .zoom-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
+    .sr-browser-content { overflow: hidden; }
 
     .no-selection {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      gap: 14px;
-      font-size: 14px;
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px; color: var(--muted); text-align: center; padding: 40px;
     }
-    .no-selection svg { color: var(--border); }
-    .no-selection h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+    .no-selection h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: var(--text); }
+    .no-selection p { font-size: 13px; color: var(--muted); }
 
-    /* ── Snippet modal ────────────────────────────────────────────────── */
+    /* Replay controls */
+    .replay-frame { border-radius: 12px; overflow: hidden; }
+    .replay-controls {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      margin-top: 12px; width: 100%; box-sizing: border-box; box-shadow: var(--shadow-card);
+    }
+    .replay-progress {
+      flex: 1; height: 8px; background: #f0eee7; border-radius: 4px;
+      cursor: pointer; position: relative; overflow: visible;
+    }
+    .replay-progress-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: #1f1d1a; border-radius: 4px; pointer-events: none;
+    }
+    .replay-progress-thumb {
+      position: absolute; top: 50%; width: 14px; height: 14px; background: #1f1d1a;
+      border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none;
+      border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+    #replay-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .replay-time { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; font-family: 'Space Grotesk', sans-serif; }
+    .replay-speed { border: 1px solid var(--border); background: #f5f3ee; border-radius: 7px; padding: 3px 6px; font-size: 12px; color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; }
+    .replay-zoom-btns { display: flex; gap: 4px; }
+    .zoom-btn { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: #f5f3ee; font-size: 11px; cursor: pointer; color: var(--muted); font-family: 'Inter', sans-serif; transition: background .1s; }
+    .zoom-btn.active { background: #1f1d1a; color: white; border-color: #1f1d1a; }
+    .zoom-btn:hover:not(.active) { background: #e8e4da; }
+
+    /* Click ripple */
+    #click-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; border-radius: inherit; }
+    .sr-click-ripple { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: rgba(93,111,240,.5); transform: translate(-50%,-50%) scale(0); animation: sr-ripple .6s ease-out forwards; pointer-events: none; }
+    @keyframes sr-ripple { 0% { transform: translate(-50%,-50%) scale(0); opacity: 1; } 100% { transform: translate(-50%,-50%) scale(3); opacity: 0; } }
+
+    /* Generic button */
+    .player-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+      border-radius: 9px; border: 1px solid #1f1d1a; background: #1f1d1a; color: white;
+      font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif;
+      white-space: nowrap; transition: background .15s, border-color .15s;
+    }
+    .player-btn:hover { background: #2d2b26; }
+    .player-btn:disabled { opacity: .5; cursor: default; }
+    .player-btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    .player-btn-ghost:hover { background: #f5f3ee; border-color: #c8c4bc; }
+
+    /* ─── Modals ────────────────────────────────────────────────────── */
     .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      backdrop-filter: blur(4px);
+      position: fixed; inset: 0; background: rgba(20,16,8,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(4px);
     }
     .modal-overlay.hidden { display: none; }
+    .modal, .settings-modal {
+      background: var(--card); border-radius: 18px; padding: 28px; max-width: 560px;
+      width: 92%; box-shadow: 0 4px 40px rgba(20,16,8,.18); max-height: 90vh; overflow-y: auto;
+    }
+    .modal h3, .settings-modal h3 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: var(--text); margin-bottom: 8px; }
+    .modal p, .settings-modal p { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+    .modal p.sub, .settings-modal p.sub { color: var(--subtle); font-size: 12px; }
+    .settings-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .settings-field { margin-bottom: 20px; }
+    .settings-field label { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .settings-field label span { font-size: 12px; color: var(--link); font-weight: 600; }
+    .settings-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+    .preset-btn { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border); background: #f5f3ee; color: var(--text); font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; transition: background .1s, border-color .1s; }
+    .preset-btn:hover { background: #eceae4; }
+    .preset-btn.active { background: #1f1d1a; color: white; border-color: #1f1d1a; }
+    .hint { font-size: 11.5px; color: var(--subtle); margin-top: 8px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 28px;
-      width: 560px;
-      max-width: 95vw;
-    }
-    .modal h3 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .modal p {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 16px;
-      line-height: 1.5;
-    }
-    .code-block {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      font-family: 'Fira Code', 'Cascadia Code', monospace;
-      font-size: 12px;
-      color: var(--accent2);
-      white-space: pre;
-      overflow-x: auto;
-      margin-bottom: 16px;
-      line-height: 1.6;
-    }
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
+    /* Code block */
+    .code-block { background: #1f1d1a; color: #e8e4d8; border-radius: 12px; padding: 16px; font-family: 'SFMono-Regular','Menlo',monospace; font-size: 12px; line-height: 1.6; white-space: pre; overflow-x: auto; margin-bottom: 12px; }
 
-    /* ── Tab switcher sidebar ────────────────────────────────────────── */
-    .sidebar-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .sidebar-tab {
-      flex: 1;
-      padding: 9px 0;
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-      cursor: pointer;
-      color: var(--muted);
-      border: none;
-      background: none;
-      border-bottom: 2px solid transparent;
-      transition: color .12s, border-color .12s;
-    }
-    .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    /* Share toast */
+    .share-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1f1d1a; color: white; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 2000; transition: transform .3s ease; box-shadow: 0 4px 20px rgba(0,0,0,.2); }
+    .share-toast.show { transform: translateX(-50%) translateY(0); }
 
-    /* ── Stats panel ─────────────────────────────────────────────────── */
-    .stats-panel {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .stat-block { display: flex; flex-direction: column; gap: 8px; }
-    .stat-block-title {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .7px;
-      color: var(--muted);
-    }
-    .stat-kpi-row { display: flex; gap: 8px; }
-    .stat-kpi {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 12px;
-    }
-    .stat-kpi-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
-    .stat-kpi-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
-
-    .bar-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-    }
-    .bar-label { width: 72px; flex-shrink: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
-    .bar-fill  { height: 100%; border-radius: 4px; transition: width .4s; }
-    .bar-count { width: 24px; text-align: right; color: var(--muted); flex-shrink: 0; }
-
-    .top-pages-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      padding: 5px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .top-pages-row:last-child { border-bottom: none; }
-    .top-pages-url { flex: 1; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .top-pages-count { color: var(--muted); flex-shrink: 0; }
-
-    .activity-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 2px;
-      height: 40px;
-    }
-    .activity-bar {
-      flex: 1;
-      background: var(--accent);
-      border-radius: 2px 2px 0 0;
-      opacity: .7;
-      min-height: 2px;
-      transition: opacity .12s;
-    }
-    .activity-bar:hover { opacity: 1; }
-
-    /* ── Settings modal cliente ──────────────────────────────────────── */
-    .settings-modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px 28px;
-      width: 420px;
-      max-width: 95vw;
-    }
-    .settings-modal h3 {
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .settings-modal .sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 20px;
-    }
-    .settings-field {
-      margin-bottom: 20px;
-    }
-    .settings-field label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .settings-field label span {
-      font-size: 12px;
-      font-weight: 400;
-      color: var(--muted);
-    }
-    .settings-field .hint {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 5px;
-    }
-    .settings-presets {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
-    .preset-btn {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      cursor: pointer;
-      padding: 5px 10px;
-      font-size: 12px;
-      transition: border-color .1s, background .1s;
-    }
-    .preset-btn:hover { border-color: var(--accent); }
-    .preset-btn.active { border-color: var(--accent); background: rgba(91,106,240,.18); color: var(--accent2); font-weight: 600; }
-
-    .settings-divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 6px 0 20px;
-    }
-
-    /* ── Scrollbar globale ────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-    /* ── Spinner ──────────────────────────────────────────────────────── */
+    /* Spinner */
+    .spinner { width: 20px; height: 20px; border: 2px solid #e7e4dd; border-top-color: #5c6fd8; border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      width: 20px; height: 20px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      flex-shrink: 0;
-    }
-  </style>
+
+    /* Hidden */
+    .hidden { display: none !important; }
+
+    /* Date range modal inputs */
+    input[type="date"] { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif; outline: none; width: 100%; box-sizing: border-box; }
+    input[type="date"]:focus { border-color: #b8b4ac; }
+    code { background: #f0eee7; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+</style>
+
 </head>
 <body>
 
-<!-- ── Topbar ──────────────────────────────────────────────────────────────── -->
-<header class="topbar">
-  <a class="topbar-logo" href="#">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-    </svg>
-    Smart Recording
-  </a>
-  <div class="topbar-spacer"></div>
-  <div class="topbar-stats">
-    <span>Sessioni: <strong id="stat-total">–</strong></span>
-    <span>Oggi: <strong id="stat-today">–</strong></span>
+<div class="sr-shell">
+
+<!-- ── Left nav ─────────────────────────────────────────────────────────── -->
+<nav class="sr-nav">
+  <div class="sr-logo">
+    <div class="sr-logo-mark">
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="none">
+        <rect x="0.8" y="0.8" width="14.4" height="9.4" rx="2.5" stroke="#f3f1ec" stroke-width="1.6"/>
+      </svg>
+      <div class="sr-logo-badge"></div>
+    </div>
+    <div class="sr-wordmark">
+      <span class="sr-wordmark-name">Smart Recording</span>
+      <span class="sr-wordmark-tag">session intelligence</span>
+    </div>
   </div>
-  <button class="player-btn" onclick="openSnippetModal()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-    </svg>
-    Installa Tracker
-  </button>
-  <button class="player-btn" id="logout-btn" onclick="doLogout()" title="Esci" style="margin-left:4px; color: var(--muted);">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-      <polyline points="16 17 21 12 16 7"/>
-      <line x1="21" y1="12" x2="9" y2="12"/>
-    </svg>
-    Esci
-  </button>
-</header>
 
-<!-- ── Layout principale ──────────────────────────────────────────────────── -->
-<div class="layout">
+  <div class="sr-nav-items">
+    <button class="sr-nav-btn active" id="tab-sessions" onclick="switchTab('sessions')">
+      <span class="sr-nav-dot"></span>Sessioni
+    </button>
+    <button class="sr-nav-btn" id="tab-stats" onclick="switchTab('stats')">
+      <span class="sr-nav-dot"></span>Statistiche
+    </button>
+  </div>
 
-  <!-- Pannello clienti -->
-  <nav class="clients-panel">
-    <div class="clients-panel-header">
-      <span class="clients-panel-title">Clienti</span>
+  <div class="sr-clients-section">
+    <div class="sr-clients-header">
+      <span class="sr-clients-title">Clienti</span>
       <button class="client-add-btn" onclick="toggleNewClientForm()" title="Nuovo cliente">+</button>
     </div>
-    <!-- Form nuovo cliente (nascosto) -->
     <div class="client-new-form" id="client-new-form" style="display:none;">
       <input type="text" id="client-name-input" placeholder="Nome cliente…" />
       <input type="text" id="client-siteid-input" placeholder="siteId (es: teamtask)" />
       <div class="client-new-form-btns">
-        <button class="player-btn" style="flex:1;padding:5px;font-size:12px;" onclick="createClient()">Crea</button>
-        <button class="player-btn player-btn-ghost" style="flex:1;padding:5px;font-size:12px;" onclick="toggleNewClientForm()">Annulla</button>
+        <button class="player-btn" style="flex:1;padding:5px 0;font-size:12px;" onclick="createClient()">Crea</button>
+        <button class="player-btn player-btn-ghost" style="flex:1;padding:5px 0;font-size:12px;" onclick="toggleNewClientForm()">Annulla</button>
       </div>
     </div>
     <div class="clients-list" id="clients-list">
-      <div class="empty-state" style="padding:20px 10px;font-size:12px;">
-        <div class="spinner"></div>
-      </div>
+      <div class="empty-state" style="padding:20px 10px;font-size:12px;"><div class="spinner"></div></div>
     </div>
-  </nav>
+  </div>
 
-  <!-- Sidebar sessioni / statistiche -->
-  <aside class="sidebar">
-    <!-- Tab switcher -->
-    <div class="sidebar-tabs">
-      <button class="sidebar-tab active" id="tab-sessions" onclick="switchTab('sessions')">
-        Sessioni
-      </button>
-      <button class="sidebar-tab" id="tab-stats" onclick="switchTab('stats')">
-        Statistiche
-      </button>
-    </div>
+  <div class="sr-nav-footer">
+    <button class="sr-install-btn" onclick="openSnippetModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      </svg>
+      Installa Tracker
+    </button>
+    <button class="sr-logout-btn" onclick="doLogout()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Esci
+    </button>
+  </div>
+</nav>
 
-    <!-- Sessioni -->
-    <div id="pane-sessions" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-      <div class="sidebar-header">
-        <div class="sidebar-title">
-          <span id="sessions-sidebar-title">Sessioni</span>
-          <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="loadSessions()">
+<!-- ── Main content ──────────────────────────────────────────────────────── -->
+<div class="sr-main">
+
+  <!-- .sidebar kept for JS compat: selectSession/backToList use querySelector('.sidebar') -->
+  <div class="sidebar">
+
+    <!-- PANE: Sessioni ──────────────────────────────────────────────────── -->
+    <div id="pane-sessions" style="display:flex;flex-direction:column;flex:1;overflow:hidden;padding:26px 32px 0;">
+
+      <div class="sr-pane-header">
+        <div>
+          <div class="sr-pane-title"><span id="sessions-sidebar-title">Sessioni</span></div>
+          <div class="sr-pane-subtitle">Replay e comportamento utenti in tempo reale</div>
+        </div>
+        <div class="sr-pane-actions">
+          <button class="player-btn player-btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="loadSessions()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
             Aggiorna
           </button>
-          <button class="player-btn player-btn-ghost" id="btn-delete-range" style="padding:4px 10px;font-size:12px;color:#f0a830;display:none;" onclick="openDeleteRangeModal()">
+          <button class="player-btn player-btn-ghost" id="btn-delete-range" style="padding:6px 12px;font-size:12px;color:#e0723a;display:none;" onclick="openDeleteRangeModal()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             Elimina per data
           </button>
-          <button class="player-btn player-btn-ghost" style="padding:4px 10px;font-size:12px;color:#e05252;" onclick="deleteAllSessions()">
+          <button class="player-btn player-btn-ghost" style="padding:6px 12px;font-size:12px;color:#e0456f;" onclick="deleteAllSessions()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
             Elimina tutto
           </button>
-        </div>
-        <div class="sidebar-search">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
-        </div>
-      </div>
-      <div class="filter-chips" id="filter-chips"></div>
-      <div style="padding:0 12px 8px;display:flex;align-items:center;gap:6px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
-        <input type="text" id="exit-page-input" placeholder="Exit page contiene… (es. carrello)" oninput="applyFilters()"
-          style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--text);font-size:12px;outline:none;" />
-      </div>
-      <div class="sessions-list" id="sessions-list">
-        <div class="empty-state">
-          <div class="spinner"></div>
-          <span>Caricamento…</span>
+          <div class="sr-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="search-input" placeholder="Cerca per URL…" oninput="filterSessions()" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Statistiche -->
-    <div id="pane-stats" style="display:none;flex:1;overflow:hidden;">
+      <!-- KPI tiles -->
+      <div class="sr-kpi-grid">
+        <div class="sr-kpi-tile" style="background:var(--grad-info);">
+          <div class="sr-kpi-label">Sessioni totali</div>
+          <div class="sr-kpi-value" id="stat-total">–</div>
+          <div class="sr-kpi-sub">registrate finora</div>
+        </div>
+        <div class="sr-kpi-tile" style="background:var(--grad-good);">
+          <div class="sr-kpi-label">Oggi</div>
+          <div class="sr-kpi-value" id="stat-today">–</div>
+          <div class="sr-kpi-sub">nuove sessioni</div>
+        </div>
+        <div class="sr-kpi-tile" style="background:var(--grad-warn);">
+          <div class="sr-kpi-label">Durata media</div>
+          <div class="sr-kpi-value" id="stat-avg-dur">–</div>
+          <div class="sr-kpi-sub">per sessione</div>
+        </div>
+        <div class="sr-kpi-tile" style="background:var(--grad-alert);">
+          <div class="sr-kpi-label">Rage click</div>
+          <div class="sr-kpi-value" id="stat-rage">–</div>
+          <div class="sr-kpi-sub">totali</div>
+        </div>
+      </div>
+
+      <!-- Device chips -->
+      <div class="sr-chips" id="filter-chips"></div>
+
+      <!-- Exit page filter -->
+      <div class="sr-exitpage-filter">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+        <input type="text" id="exit-page-input" placeholder="Exit page contiene… (es. carrello)" oninput="applyFilters()" />
+      </div>
+
+      <!-- Table card -->
+      <div class="sr-table-card">
+        <div class="sessions-list" id="sessions-list">
+          <div class="empty-state">
+            <div class="spinner"></div>
+            <span>Caricamento…</span>
+          </div>
+        </div>
+      </div>
+    </div><!-- /pane-sessions -->
+
+    <!-- PANE: Statistiche ───────────────────────────────────────────────── -->
+    <div id="pane-stats" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+      <div class="stats-pane-header">
+        <div class="sr-pane-title">Statistiche</div>
+        <div class="sr-pane-subtitle">Panoramica aggregata su tutte le sessioni</div>
+      </div>
       <div class="stats-panel" id="stats-panel">
         <div class="empty-state"><div class="spinner"></div></div>
       </div>
     </div>
-  </aside>
 
-  <!-- Area player (nascosta finché non si seleziona una sessione) -->
+  </div><!-- /.sidebar -->
+
+  <!-- Player area ─────────────────────────────────────────────────────────── -->
   <main class="player-area" id="player-area" style="display:none;">
 
-    <!-- Toolbar player (nascosta finché non si seleziona una sessione) -->
     <div class="player-toolbar" id="player-toolbar" style="display:none;">
-      <!-- Riga 1: info sessione + play + share -->
       <div class="player-toolbar-row">
         <button class="btn-back" onclick="backToList()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
           Lista
         </button>
         <div class="player-session-info">
@@ -1113,10 +761,12 @@
           Play
         </button>
         <button class="tbl-action" title="Copia link di condivisione" onclick="shareCurrentSession()" style="padding:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
         </button>
       </div>
-      <!-- Riga 2: tag + nota -->
       <div class="player-toolbar-row">
         <span class="tag-picker-label">Tag</span>
         <button class="tag-picker-btn" onclick="quickTag('🐞 Bug')" id="tpick-0">🐞 Bug</button>
@@ -1125,46 +775,48 @@
         <button class="tag-picker-btn" onclick="quickTag('😡 Frustration')" id="tpick-3">😡 Frustration</button>
         <button class="tag-picker-btn" onclick="quickTag('🎉 Success')" id="tpick-4">🎉 Success</button>
         <button class="tag-picker-btn" onclick="quickTag('🏆 Conversion')" id="tpick-5">🏆 Conversion</button>
-        <input class="session-note-input" id="session-note-input" placeholder="Note…" onblur="saveNote(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="margin-left:auto;" />
+        <input class="session-note-input" id="session-note-input" placeholder="Note…"
+               onblur="saveNote(this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="margin-left:auto;" />
       </div>
-      <!-- Riga 3: errori JS (visibile solo se presenti) -->
       <div class="player-toolbar-row" id="js-errors-row" style="display:none;flex-wrap:wrap;gap:6px;align-items:flex-start;">
-        <span style="font-size:11px;color:#f0a830;font-weight:600;white-space:nowrap;">⚠ Errori JS</span>
+        <span style="font-size:11px;color:#e0723a;font-weight:600;white-space:nowrap;">⚠ Errori JS</span>
         <div id="js-errors-list" style="display:flex;flex-wrap:wrap;gap:4px;flex:1;"></div>
       </div>
     </div>
 
-    <!-- Stato iniziale -->
     <div class="no-selection" id="no-selection">
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
       </svg>
       <h2>Nessuna sessione selezionata</h2>
       <p>Seleziona una sessione dalla lista per avviare il replay.</p>
     </div>
 
-    <!-- Container rrweb-player -->
     <div class="player-wrap" id="player-wrap" style="display:none;">
-      <div id="rrweb-player-container"></div>
+      <div class="sr-browser-chrome">
+        <div class="sr-chrome-bar">
+          <div class="sr-chrome-dots"><span></span><span></span><span></span></div>
+          <div class="sr-chrome-url-bar" id="player-chrome-url">about:blank</div>
+        </div>
+        <div class="sr-browser-content">
+          <div id="rrweb-player-container"></div>
+        </div>
+      </div>
     </div>
-
   </main>
-</div>
 
-<!-- ── Modal impostazioni cliente ─────────────────────────────────────────── -->
+</div><!-- /.sr-main -->
+</div><!-- /.sr-shell -->
+
+<!-- ── Modal impostazioni cliente ────────────────────────────────────────── -->
 <div class="modal-overlay hidden" id="client-settings-modal" onclick="closeClientSettings(event)">
   <div class="settings-modal" onclick="event.stopPropagation()">
     <h3 id="csm-title">Impostazioni</h3>
     <p class="sub" id="csm-sub">siteId: –</p>
-
     <hr class="settings-divider">
-
-    <!-- Max sessioni -->
     <div class="settings-field">
-      <label>
-        Sessioni massime al giorno
-        <span id="csm-sessions-val">illimitato</span>
-      </label>
+      <label>Sessioni massime al giorno <span id="csm-sessions-val">illimitato</span></label>
       <div class="settings-presets" id="csm-sessions-presets">
         <button class="preset-btn" onclick="setMaxSessions(0)">∞ Illimitato</button>
         <button class="preset-btn" onclick="setMaxSessions(50)">50</button>
@@ -1175,13 +827,8 @@
       </div>
       <p class="hint">Limite giornaliero: si azzera ogni mezzanotte. Quando raggiunto, le nuove sessioni vengono scartate silenziosamente. Usa <strong>∞ Illimitato</strong> per non porre vincoli.</p>
     </div>
-
-    <!-- Sample rate -->
     <div class="settings-field">
-      <label>
-        Percentuale sessioni registrate
-        <span id="csm-sample-val">100%</span>
-      </label>
+      <label>Percentuale sessioni registrate <span id="csm-sample-val">100%</span></label>
       <div class="settings-presets" id="csm-sample-presets">
         <button class="preset-btn" onclick="setSampleRate(100)">100%</button>
         <button class="preset-btn" onclick="setSampleRate(50)">50%</button>
@@ -1192,13 +839,8 @@
       </div>
       <p class="hint">Il server accetta solo questa percentuale di sessioni in arrivo. <strong>100%</strong> registra tutto.</p>
     </div>
-
-    <!-- TTL -->
     <div class="settings-field">
-      <label>
-        Conserva le sessioni per
-        <span id="csm-ttl-val">default globale</span>
-      </label>
+      <label>Conserva le sessioni per <span id="csm-ttl-val">default globale</span></label>
       <div class="settings-presets" id="csm-ttl-presets">
         <button class="preset-btn" onclick="setTtl(0)">Default</button>
         <button class="preset-btn" onclick="setTtl(7)">7 giorni</button>
@@ -1209,7 +851,6 @@
       </div>
       <p class="hint"><strong>Default</strong> usa il valore globale del server (attualmente <span id="csm-global-ttl">30</span> giorni).</p>
     </div>
-
     <div class="modal-actions">
       <button class="player-btn player-btn-ghost" onclick="closeClientSettings()">Annulla</button>
       <button class="player-btn" onclick="saveClientSettings()">Salva impostazioni</button>
@@ -1217,7 +858,7 @@
   </div>
 </div>
 
-<!-- ── Modal snippet ───────────────────────────────────────────────────────── -->
+<!-- ── Modal snippet ─────────────────────────────────────────────────────── -->
 <div class="modal-overlay hidden" id="snippet-modal" onclick="closeSnippetModal(event)">
   <div class="modal">
     <h3>Installa il Tracker</h3>
@@ -1239,7 +880,7 @@
   </div>
 </div>
 
-<!-- ── Delete by date range modal ──────────────────────────────────────────── -->
+<!-- ── Delete range modal ─────────────────────────────────────────────────── -->
 <div class="modal-overlay hidden" id="delete-range-modal" onclick="closeDeleteRangeModal(event)">
   <div class="modal" style="max-width:400px;">
     <h3 style="margin-bottom:6px;">Elimina sessioni per data</h3>
@@ -1249,17 +890,17 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
       <div>
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Dal</label>
-        <input type="date" id="range-from" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box;" />
+        <input type="date" id="range-from" />
       </div>
       <div>
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Al</label>
-        <input type="date" id="range-to" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;box-sizing:border-box;" />
+        <input type="date" id="range-to" />
       </div>
     </div>
     <div id="delete-range-preview" style="font-size:12px;color:var(--muted);min-height:18px;margin-bottom:16px;"></div>
     <div class="modal-actions">
       <button class="player-btn player-btn-ghost" onclick="closeDeleteRangeModal()">Annulla</button>
-      <button class="player-btn" id="btn-confirm-range-delete" style="background:#e05252;border-color:#e05252;" onclick="confirmDeleteRange()">
+      <button class="player-btn" style="background:#e0456f;border-color:#e0456f;" onclick="confirmDeleteRange()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
         </svg>
@@ -1269,11 +910,8 @@
   </div>
 </div>
 
-<!-- ── Share toast ──────────────────────────────────────────────────────────── -->
+<!-- ── Share toast ────────────────────────────────────────────────────────── -->
 <div class="share-toast" id="share-toast">🔗 Link copiato negli appunti!</div>
-
-<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
-<script async src="https://cdn.jsdelivr.net/npm/rrweb@1/dist/rrweb.min.js"></script>
 
 <script>
 (function () {
@@ -1610,7 +1248,6 @@
   };
 
   function updateStats() {
-    // Usa il sessions array già in memoria — no fetch extra
     var all = sessions;
     document.getElementById('stat-total').textContent = all.length;
     var today = new Date().toDateString();
@@ -1618,6 +1255,15 @@
       return new Date(s.startTime).toDateString() === today;
     }).length;
     document.getElementById('stat-today').textContent = todayCount;
+    // Durata media
+    var withDur = all.filter(function (s) { return s.duration; });
+    var avgEl = document.getElementById('stat-avg-dur');
+    if (avgEl) avgEl.textContent = withDur.length
+      ? fmtDuration(Math.round(withDur.reduce(function (a, s) { return a + s.duration; }, 0) / withDur.length))
+      : '–';
+    // Rage click totali
+    var rageEl = document.getElementById('stat-rage');
+    if (rageEl) rageEl.textContent = all.reduce(function (a, s) { return a + (s.rageClicks || 0); }, 0);
   }
 
   // ── Render lista (table view) ──────────────────────────────────────────────
@@ -1633,12 +1279,29 @@
 
   // Badge rilevanza
   function relevanceBadge(r, score) {
-    var colors = { high: '#e05252', medium: '#f0a830', low: '#4caf7d' };
-    var labels = { high: 'Alta', medium: 'Media', low: 'Bassa' };
-    var c = colors[r] || colors.low;
-    var l = labels[r] || 'Bassa';
-    return '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:' + c + ';background:' + c + '1a;border-radius:4px;padding:2px 6px;">' +
-      l + (score ? ' <span style="opacity:.6;font-weight:400">' + score + '</span>' : '') + '</span>';
+    var cfg = {
+      high:   { bg: '#fbdad0', color: '#b8471f', label: 'Alta' },
+      medium: { bg: '#fbe6a8', color: '#92660a', label: 'Media' },
+      low:    { bg: '#eceae4', color: '#8a8579', label: 'Bassa' }
+    };
+    var c = cfg[r] || cfg.low;
+    return '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:' + c.color + ';background:' + c.bg + ';border-radius:7px;padding:2px 8px;">' +
+      c.label + (score ? ' <span style="opacity:.55;font-weight:400;font-size:10px">' + score + '</span>' : '') + '</span>';
+  }
+
+  var TAG_COLORS = {
+    'Bug':         { bg: '#fde3da', color: '#b34a1f' },
+    'UI/UX':       { bg: '#dde6fb', color: '#3752c4' },
+    'Confusion':   { bg: '#fbe6a8', color: '#92660a' },
+    'Frustration': { bg: '#fbdad0', color: '#b8471f' },
+    'Success':     { bg: '#d9f0d8', color: '#2f7a3c' },
+    'Conversion':  { bg: '#ece0fb', color: '#6b3fb8' }
+  };
+  function tagStyle(tag) {
+    for (var k in TAG_COLORS) {
+      if (tag.indexOf(k) !== -1) return TAG_COLORS[k];
+    }
+    return { bg: '#eceae4', color: '#8a8579' };
   }
 
   function sortIcon(field) {
@@ -1711,7 +1374,7 @@
     var rows = list.map(function (s) {
       var isActive   = currentSession && currentSession.id === s.id;
       var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
-      var tagHtml    = (s.tags || []).map(function (t) { return '<span class="tag-pill">' + t + '</span>'; }).join('');
+      var tagHtml    = (s.tags || []).map(function (t) { var ts = tagStyle(t); return '<span class="tag-pill" style="background:' + ts.bg + ';color:' + ts.color + '">' + t + '</span>'; }).join('');
       var liveIndicator = s.status === 'recording'
         ? ' <span style="color:var(--red);font-size:10px;font-weight:700;">● LIVE</span>' : '';
       var flag = countryFlag(s.country);
@@ -1725,9 +1388,9 @@
 
       // Icone comportamentali nella riga
       var behaviorHints = '';
-      if (s.rageClicks > 0)    behaviorHints += '<span title="' + s.rageClicks + ' rage click" style="color:#e05252;font-size:11px">😠×' + s.rageClicks + '</span> ';
-      if (s.consoleErrors > 0) behaviorHints += '<span title="' + s.consoleErrors + ' errori console" style="color:#f0a830;font-size:11px">⚠×' + s.consoleErrors + '</span> ';
-      if (s.uturns > 0)        behaviorHints += '<span title="' + s.uturns + ' u-turn" style="color:#7a7f9a;font-size:11px">↩×' + s.uturns + '</span> ';
+      if (s.rageClicks > 0)    behaviorHints += '<span title="' + s.rageClicks + ' rage click" style="display:inline-flex;align-items:center;gap:2px;font-size:10.5px;font-weight:600;color:#b8471f;background:#fbdad0;border-radius:5px;padding:1px 5px">😠 ' + s.rageClicks + '</span> ';
+      if (s.consoleErrors > 0) behaviorHints += '<span title="' + s.consoleErrors + ' errori console" style="display:inline-flex;align-items:center;gap:2px;font-size:10.5px;font-weight:600;color:#92660a;background:#fbe6a8;border-radius:5px;padding:1px 5px">⚠ ' + s.consoleErrors + '</span> ';
+      if (s.uturns > 0)        behaviorHints += '<span title="' + s.uturns + ' u-turn" style="display:inline-flex;align-items:center;gap:2px;font-size:10.5px;font-weight:600;color:#3752c4;background:#dde6fb;border-radius:5px;padding:1px 5px">↩ ' + s.uturns + '</span> ';
 
       return '<tr' + (isActive ? ' class="active"' : '') + ' onclick="selectSession(\'' + s.id + '\')">' +
         '<td onclick="event.stopPropagation()" style="width:60px;padding:5px 6px;">' +
@@ -1851,6 +1514,8 @@
     document.getElementById('player-wrap').style.display         = 'none';
 
     document.getElementById('player-url').textContent = currentSession.url;
+    var chromeUrlEl = document.getElementById('player-chrome-url');
+    if (chromeUrlEl) chromeUrlEl.textContent = currentSession.url || 'about:blank';
     var s = currentSession;
     var deviceIcon = DEVICE_ICONS[s.deviceType] || DEVICE_ICONS.desktop;
     var flag = countryFlag(s.country);
@@ -1864,9 +1529,9 @@
       '<span>' + fmtBrowser(s.userAgent) + '</span>' +
       (s.os          ? '<span>' + s.os + '</span>'            : '') +
       (s.language    ? '<span>🌐 ' + s.language + '</span>'  : '') +
-      (s.rageClicks  ? '<span style="color:#e05252">😠 ' + s.rageClicks + ' rage click</span>' : '') +
-      (s.consoleErrors ? '<span style="color:#f0a830">⚠ ' + s.consoleErrors + ' errori JS</span>' : '') +
-      (s.uturns      ? '<span style="color:#a855f7">↩ ' + s.uturns + ' u-turn</span>' : '') +
+      (s.rageClicks  ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#b8471f;background:#fbdad0;border-radius:6px;padding:2px 7px">😠 ' + s.rageClicks + ' rage click</span>' : '') +
+      (s.consoleErrors ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#92660a;background:#fbe6a8;border-radius:6px;padding:2px 7px">⚠ ' + s.consoleErrors + ' errori JS</span>' : '') +
+      (s.uturns      ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#3752c4;background:#dde6fb;border-radius:6px;padding:2px 7px">↩ ' + s.uturns + ' u-turn</span>' : '') +
       '<span>' + (s.eventsCount || 0) + ' eventi</span>';
 
     // Errori JS — mostra lista con timestamp cliccabili
@@ -2329,6 +1994,8 @@
             }
             var urlEl = document.getElementById('player-url');
             if (urlEl && urlEl.textContent !== curPage) urlEl.textContent = curPage;
+            var chromeEl = document.getElementById('player-chrome-url');
+            if (chromeEl && chromeEl.textContent !== curPage) chromeEl.textContent = curPage;
 
             if (replayState.current >= replayState.duration) {
               clearInterval(replayState.timer);
@@ -2641,6 +2308,18 @@
 
   // ── Tab switch ─────────────────────────────────────────────────────────────
   window.switchTab = function (tab) {
+    // If player is open, close it first
+    if (currentSession) {
+      document.querySelector('.sidebar').classList.remove('hidden');
+      document.getElementById('player-area').style.display    = 'none';
+      document.getElementById('no-selection').style.display   = 'flex';
+      document.getElementById('player-toolbar').style.display = 'none';
+      document.getElementById('player-wrap').style.display    = 'none';
+      if (player) { try { player.pause(); } catch(e){} player = null; }
+      clearInterval(replayState.timer);
+      document.getElementById('rrweb-player-container').innerHTML = '';
+      currentSession = null;
+    }
     document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
     document.getElementById('tab-stats').classList.toggle('active', tab === 'stats');
     document.getElementById('pane-sessions').style.display = tab === 'sessions' ? 'flex' : 'none';
