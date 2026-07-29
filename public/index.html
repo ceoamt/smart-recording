@@ -1857,11 +1857,13 @@
           var frameEl = document.createElement('div');
           frameEl.id        = 'replay-frame-el';
           frameEl.className = 'replay-frame';
-          frameEl.style.width    = frameW + 'px';
-          frameEl.style.height   = frameH + 'px';
-          frameEl.style.overflow = 'hidden';
-          frameEl.style.position = 'relative';
-          frameEl.style.margin   = '0 auto';
+          frameEl.style.width      = frameW + 'px';
+          frameEl.style.height     = frameH + 'px';
+          frameEl.style.overflow   = 'hidden';
+          frameEl.style.position   = 'relative';
+          frameEl.style.margin     = '0 auto';
+          frameEl.style.background = '#ffffff';
+          frameEl.style.boxShadow  = '0 2px 24px rgba(20,16,8,.10)';
           container.appendChild(frameEl);
 
           // Overlay per click ripple (sopra il replay, pointer-events:none)
