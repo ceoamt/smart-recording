@@ -17,6 +17,7 @@
       border: 2px solid rgba(0,0,0,.5); background: rgba(255,255,255,.7);
       transform: translate(-50%,-50%); pointer-events: none; transition: left .05s, top .05s;
     }
+    canvas.replayer-mouse-tail { position: absolute; pointer-events: none; }
 
     /* ─── Reset ─────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1916,21 +1917,12 @@
             mouseTail: true,
           });
 
-          // Fix: rrweb imposta iframe display:none in setupDom() e lo mostra
-          // solo in handleResize() (Meta event). Ma rebuildFullSnapshot() viene
-          // chiamato da un setTimeout 1ms — mentre l'iframe è ancora hidden.
-          // Su Safari/Chrome, un iframe hidden con sandbox può avere
-          // contentDocument=null, causando rebuild silenziosamente fallito.
-          // Soluzione: forziamo display:inherit subito, prima del 1ms timer.
+          // rrweb sets iframe display:none in setupDom(); force it visible before
+          // the 1ms timer fires so contentDocument is accessible immediately.
           (function () {
             var wrapper = innerEl.querySelector('.replayer-wrapper');
             var ifrEl   = wrapper && wrapper.querySelector('iframe');
-            if (ifrEl) {
-              ifrEl.style.display = 'inherit';
-              console.log('[SR] iframe pre-show ok, contentDocument:', !!ifrEl.contentDocument);
-            } else {
-              console.warn('[SR] iframe non trovato dopo Replayer()');
-            }
+            if (ifrEl) ifrEl.style.display = 'inherit';
           })();
 
           var meta = player.getMetaData();
@@ -1969,42 +1961,6 @@
             .sort(function (a, b) { return a.t - b.t; });
 
           player.play();
-
-          // Diagnostic: verifica iframe dopo 1s e forza visibilità
-          setTimeout(function () {
-            var wrapper = innerEl && innerEl.querySelector('.replayer-wrapper');
-            var ifrEl   = wrapper && wrapper.querySelector('iframe');
-            if (!ifrEl) { console.warn('[SR] 1s: nessun iframe trovato'); return; }
-            var body = null, htmlLen = 0;
-            try {
-              var doc = ifrEl.contentDocument;
-              body = doc && doc.body;
-              htmlLen = body ? body.innerHTML.length : 0;
-            } catch(e) { console.warn('[SR] 1s: errore accesso contentDocument', e); }
-            console.log('[SR] 1s: display=', ifrEl.style.display,
-                        'w=', ifrEl.getAttribute('width'), 'h=', ifrEl.getAttribute('height'),
-                        'body.innerHTML.length=', htmlLen,
-                        'contentDocument=', !!ifrEl.contentDocument);
-            // Se l'iframe ha contenuto ma è nascosto, forza visibilità
-            if (ifrEl.style.display === 'none' || ifrEl.style.display === '') {
-              ifrEl.style.display = 'inherit';
-              console.warn('[SR] 1s: iframe era nascosto, forzato display:inherit');
-            }
-            // Se non ha contenuto, prova rebuild manuale
-            if (htmlLen === 0) {
-              console.warn('[SR] 1s: iframe vuoto – tento rebuild manuale');
-              try {
-                var fsEvent = events.find(function(e) { return e.type === 2; });
-                if (fsEvent && ifrEl.contentDocument) {
-                  console.log('[SR] FullSnapshot trovato, tipo nodo radice:', fsEvent.data && fsEvent.data.node && fsEvent.data.node.type);
-                  player.rebuildFullSnapshot(fsEvent);
-                  console.log('[SR] rebuildFullSnapshot completato');
-                } else {
-                  console.warn('[SR] Nessun FullSnapshot negli eventi o contentDocument null');
-                }
-              } catch(e2) { console.error('[SR] errore rebuild manuale:', e2); }
-            }
-          }, 1000);
 
           // Aggiorna progress ogni 200ms
           replayState.timer = setInterval(function () {
