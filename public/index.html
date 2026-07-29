@@ -1916,6 +1916,23 @@
             mouseTail: true,
           });
 
+          // Fix: rrweb imposta iframe display:none in setupDom() e lo mostra
+          // solo in handleResize() (Meta event). Ma rebuildFullSnapshot() viene
+          // chiamato da un setTimeout 1ms — mentre l'iframe è ancora hidden.
+          // Su Safari/Chrome, un iframe hidden con sandbox può avere
+          // contentDocument=null, causando rebuild silenziosamente fallito.
+          // Soluzione: forziamo display:inherit subito, prima del 1ms timer.
+          (function () {
+            var wrapper = innerEl.querySelector('.replayer-wrapper');
+            var ifrEl   = wrapper && wrapper.querySelector('iframe');
+            if (ifrEl) {
+              ifrEl.style.display = 'inherit';
+              console.log('[SR] iframe pre-show ok, contentDocument:', !!ifrEl.contentDocument);
+            } else {
+              console.warn('[SR] iframe non trovato dopo Replayer()');
+            }
+          })();
+
           var meta = player.getMetaData();
           replayState.duration = meta.totalTime;
           replayState.playing  = true;
@@ -1952,6 +1969,19 @@
             .sort(function (a, b) { return a.t - b.t; });
 
           player.play();
+
+          // Diagnostic: verifica iframe dopo 500ms
+          setTimeout(function () {
+            var wrapper = innerEl && innerEl.querySelector('.replayer-wrapper');
+            var ifrEl   = wrapper && wrapper.querySelector('iframe');
+            if (ifrEl) {
+              var body = null;
+              try { body = ifrEl.contentDocument && ifrEl.contentDocument.body; } catch(e) {}
+              console.log('[SR] iframe 500ms: display=', ifrEl.style.display,
+                          'w=', ifrEl.getAttribute('width'), 'h=', ifrEl.getAttribute('height'),
+                          'body children=', body ? body.children.length : 'null');
+            }
+          }, 500);
 
           // Aggiorna progress ogni 200ms
           replayState.timer = setInterval(function () {
