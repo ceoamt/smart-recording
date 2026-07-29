@@ -1970,18 +1970,41 @@
 
           player.play();
 
-          // Diagnostic: verifica iframe dopo 500ms
+          // Diagnostic: verifica iframe dopo 1s e forza visibilità
           setTimeout(function () {
             var wrapper = innerEl && innerEl.querySelector('.replayer-wrapper');
             var ifrEl   = wrapper && wrapper.querySelector('iframe');
-            if (ifrEl) {
-              var body = null;
-              try { body = ifrEl.contentDocument && ifrEl.contentDocument.body; } catch(e) {}
-              console.log('[SR] iframe 500ms: display=', ifrEl.style.display,
-                          'w=', ifrEl.getAttribute('width'), 'h=', ifrEl.getAttribute('height'),
-                          'body children=', body ? body.children.length : 'null');
+            if (!ifrEl) { console.warn('[SR] 1s: nessun iframe trovato'); return; }
+            var body = null, htmlLen = 0;
+            try {
+              var doc = ifrEl.contentDocument;
+              body = doc && doc.body;
+              htmlLen = body ? body.innerHTML.length : 0;
+            } catch(e) { console.warn('[SR] 1s: errore accesso contentDocument', e); }
+            console.log('[SR] 1s: display=', ifrEl.style.display,
+                        'w=', ifrEl.getAttribute('width'), 'h=', ifrEl.getAttribute('height'),
+                        'body.innerHTML.length=', htmlLen,
+                        'contentDocument=', !!ifrEl.contentDocument);
+            // Se l'iframe ha contenuto ma è nascosto, forza visibilità
+            if (ifrEl.style.display === 'none' || ifrEl.style.display === '') {
+              ifrEl.style.display = 'inherit';
+              console.warn('[SR] 1s: iframe era nascosto, forzato display:inherit');
             }
-          }, 500);
+            // Se non ha contenuto, prova rebuild manuale
+            if (htmlLen === 0) {
+              console.warn('[SR] 1s: iframe vuoto – tento rebuild manuale');
+              try {
+                var fsEvent = events.find(function(e) { return e.type === 2; });
+                if (fsEvent && ifrEl.contentDocument) {
+                  console.log('[SR] FullSnapshot trovato, tipo nodo radice:', fsEvent.data && fsEvent.data.node && fsEvent.data.node.type);
+                  player.rebuildFullSnapshot(fsEvent);
+                  console.log('[SR] rebuildFullSnapshot completato');
+                } else {
+                  console.warn('[SR] Nessun FullSnapshot negli eventi o contentDocument null');
+                }
+              } catch(e2) { console.error('[SR] errore rebuild manuale:', e2); }
+            }
+          }, 1000);
 
           // Aggiorna progress ogni 200ms
           replayState.timer = setInterval(function () {
